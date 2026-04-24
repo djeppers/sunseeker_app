@@ -66,6 +66,18 @@
       "accessCount": 3,
       "lastAccessed": 1777066034619,
       "type": "file"
+    },
+    {
+      "path": "src\\pkjs\\index.js",
+      "accessCount": 2,
+      "lastAccessed": 1777067112334,
+      "type": "file"
+    },
+    {
+      "path": "src\\embeddedjs\\manifest.json",
+      "accessCount": 1,
+      "lastAccessed": 1777067072369,
+      "type": "file"
     }
   ],
   "userDirectives": []
