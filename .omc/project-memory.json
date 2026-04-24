@@ -78,6 +78,18 @@
       "accessCount": 1,
       "lastAccessed": 1777067072369,
       "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 1,
+      "lastAccessed": 1777067564423,
+      "type": "directory"
+    },
+    {
+      "path": "src\\c\\main.c",
+      "accessCount": 1,
+      "lastAccessed": 1777067663150,
+      "type": "file"
     }
   ],
   "userDirectives": []
