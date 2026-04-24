@@ -1,6 +1,10 @@
 #include <pebble.h>
 
 int main(void) {
-    app_event_loop();
-    return 0;
+    Window *w = window_create();
+    window_stack_push(w, true);
+
+    moddable_createMachine(NULL);
+
+    window_destroy(w);
 }

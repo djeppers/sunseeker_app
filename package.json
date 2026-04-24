@@ -7,7 +7,7 @@
   "pebble": {
     "displayName": "SunSeeker",
     "uuid": "407e0e62-3ef3-4453-af26-9733a9bcb192",
-    "projectType": "alloy",
+    "projectType": "moddable",
     "targetPlatforms": ["emery", "gabbro"],
     "sdk": "alloy"
   },
