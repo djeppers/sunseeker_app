@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tests/sun.test.js)",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/piu/apps/compass\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/hellolocation\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/piu/apps/compass/src\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/hellolocation/src\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/piu/apps/compass/src/embeddedjs\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/hellolocation/src/embeddedjs\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Moddable-OpenSource/pebble-examples/main/piu/apps/compass/src/embeddedjs/main.js\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Moddable-OpenSource/pebble-examples/main/hellolocation/src/embeddedjs/main.js\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Moddable-OpenSource/pebble-examples/main/piu/apps/compass/src/embeddedjs/manifest.json\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Moddable-OpenSource/pebble-examples/main/hellolocation/src/embeddedjs/manifest.json\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/hellobutton/src/embeddedjs\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Moddable-OpenSource/pebble-examples/main/hellobutton/src/embeddedjs/main.js\")",
+      "Bash(curl -s \"https://api.github.com/repos/Moddable-OpenSource/pebble-examples/contents/hellolocation/src/pkjs\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Moddable-OpenSource/pebble-examples/main/hellolocation/src/pkjs/index.js\")"
+    ]
+  }
+}
