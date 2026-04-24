@@ -1,6 +1,6 @@
-#include <rocky/rocky.h>
+#include <pebble.h>
 
 int main(void) {
-    rocky_event_loop_with_handler(NULL);
+    app_event_loop();
     return 0;
 }
