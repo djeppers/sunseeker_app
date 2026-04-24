@@ -99,26 +99,26 @@ function redraw() {
 // ── Drawing — compass view ────────────────────────────────────────────────────
 function drawDot(p, bearing, r, color, radius) {
     const { x, y } = ringPos(bearing, r);
-    p.fillRoundRectangle(color, x - radius, y - radius, radius * 2, radius * 2, radius);
+    p.fillColor(color, x - radius, y - radius, radius * 2, radius * 2);
 }
 
 function drawCompassView(p) {
     p.fillColor(C_BG, 0, 0, W, H);
 
-    // Ring: filled outer circle + background inner circle = torus
+    // Ring: filled outer square + background inner square = border ring
     const ringW = 5;
-    p.fillRoundRectangle(C_RING, CX - RING_R, CY - RING_R, RING_R * 2, RING_R * 2, RING_R);
+    p.fillColor(C_RING, CX - RING_R, CY - RING_R, RING_R * 2, RING_R * 2);
     const inner = RING_R - ringW;
-    p.fillRoundRectangle(C_BG, CX - inner, CY - inner, inner * 2, inner * 2, inner);
+    p.fillColor(C_BG, CX - inner, CY - inner, inner * 2, inner * 2);
 
     // Tick marks every 30° (major at 0/90/180/270)
     for (let b = 0; b < 360; b += 30) {
         const isMaj = b % 90 === 0;
         const { x, y } = ringPos(b, RING_R - ringW - 1);
         const sz = isMaj ? 4 : 2;
-        p.fillRoundRectangle(
+        p.fillColor(
             isMaj ? C_TICK_HI : C_TICK_LO,
-            x - (sz >> 1), y - (sz >> 1), sz, sz, sz >> 1,
+            x - (sz >> 1), y - (sz >> 1), sz, sz,
         );
     }
 
