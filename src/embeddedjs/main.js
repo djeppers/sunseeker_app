@@ -243,15 +243,15 @@ function drawDetailView(p) {
 // ── Location fetch (module-level so button + timer can both call it) ──────────
 function doLocationFetch() {
     const sensor = new Location({
-        onSample() {
-            const pos = this.sample();
+        onSample: () => {
+            const pos = sensor.sample();
             state.lat     = pos.latitude;
             state.lon     = pos.longitude;
             state.located = true;
             calcSun();
             saveLocation(pos.latitude, pos.longitude);
             redraw();
-            this.close();
+            sensor.close();
         }
     });
     sensor.configure({
@@ -279,9 +279,9 @@ class AppBehavior {
         redraw();
 
         // Compass — update heading on every sample
-        new Compass({
-            onSample() {
-                const { heading } = this.sample();
+        const compass = new Compass({
+            onSample: () => {
+                const { heading } = compass.sample();
                 if (state.heading !== heading) {
                     state.heading = heading;
                     redraw();
