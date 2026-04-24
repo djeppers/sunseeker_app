@@ -2,7 +2,6 @@ import {} from "piu/MC";
 import Compass from "embedded:sensor/Compass";
 import Location from "embedded:sensor/Location";
 import Button from "pebble/button";
-import Timer from "timer";
 import { sunTimes, sunAzimuth } from "sun";
 
 // ── Screen geometry ───────────────────────────────────────────────────────────
@@ -29,8 +28,8 @@ const C_DIM     = "#686868";
 const C_PANEL   = "#080C18";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
-const F_SM = "bold 10px Gothic";
-const F_MD = "bold 14px Gothic";
+const F_SM = new Style({ font: "bold 10px Gothic" });
+const F_MD = new Style({ font: "bold 14px Gothic" });
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
@@ -291,10 +290,10 @@ class AppBehavior {
 
         // Location — fetch once now, then every 10 minutes
         doLocationFetch();
-        Timer.set(doLocationFetch, 600000, 600000);
+        setInterval(doLocationFetch, 600000);
 
         // Recalculate sun elevation every minute (bearing / elevation drift)
-        Timer.set(() => { calcSun(); redraw(); }, 60000, 60000);
+        setInterval(() => { calcSun(); redraw(); }, 60000);
 
         // Buttons
         new Button({
