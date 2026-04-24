@@ -28,8 +28,8 @@ const C_DIM     = "#686868";
 const C_PANEL   = "#080C18";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
-const F_SM = new Style({ font: "bold 10px Gothic" });
-const F_MD = new Style({ font: "bold 14px Gothic" });
+const F_SM = new Style({ font: "bold 14px Gothic" });
+const F_MD = new Style({ font: "bold 18px Gothic" });
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
