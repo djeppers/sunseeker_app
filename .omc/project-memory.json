@@ -62,21 +62,33 @@
   },
   "hotPaths": [
     {
+      "path": "src\\embeddedjs\\main.js",
+      "accessCount": 18,
+      "lastAccessed": 1777144037444,
+      "type": "file"
+    },
+    {
       "path": "package.json",
-      "accessCount": 3,
-      "lastAccessed": 1777066034619,
+      "accessCount": 5,
+      "lastAccessed": 1777143944792,
       "type": "file"
     },
     {
       "path": "src\\pkjs\\index.js",
-      "accessCount": 2,
-      "lastAccessed": 1777067112334,
+      "accessCount": 5,
+      "lastAccessed": 1777144037508,
+      "type": "file"
+    },
+    {
+      "path": "src\\c\\main.c",
+      "accessCount": 3,
+      "lastAccessed": 1777068306875,
       "type": "file"
     },
     {
       "path": "src\\embeddedjs\\manifest.json",
-      "accessCount": 1,
-      "lastAccessed": 1777067072369,
+      "accessCount": 2,
+      "lastAccessed": 1777143942893,
       "type": "file"
     },
     {
@@ -86,9 +98,9 @@
       "type": "directory"
     },
     {
-      "path": "src\\c\\main.c",
+      "path": "src\\embeddedjs\\sun.js",
       "accessCount": 1,
-      "lastAccessed": 1777067663150,
+      "lastAccessed": 1777068844460,
       "type": "file"
     }
   ],

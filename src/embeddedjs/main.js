@@ -48,6 +48,14 @@ let port = null;  // set in PortBehavior.onCreate; used to trigger redraws
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const RAD = Math.PI / 180;
 
+// Filled circle via scanline (Poco has no arc primitive)
+function fillCircle(p, cx, cy, r, color) {
+    for (let dy = -r; dy <= r; dy++) {
+        const dx = Math.round(Math.sqrt(r * r - dy * dy));
+        p.fillColor(color, cx - dx, cy + dy, dx * 2 + 1, 1);
+    }
+}
+
 // Screen coords for a compass bearing at distance r from (cx, cy), given current heading.
 function ringPos(bearing, r) {
     const a = ((bearing - state.heading) % 360 + 360) % 360 * RAD;
@@ -105,11 +113,10 @@ function drawDot(p, bearing, r, color, radius) {
 function drawCompassView(p) {
     p.fillColor(C_BG, 0, 0, W, H);
 
-    // Ring: filled outer square + background inner square = border ring
+    // Ring: filled outer circle + inner circle = circular border ring
     const ringW = 5;
-    p.fillColor(C_RING, CX - RING_R, CY - RING_R, RING_R * 2, RING_R * 2);
-    const inner = RING_R - ringW;
-    p.fillColor(C_BG, CX - inner, CY - inner, inner * 2, inner * 2);
+    fillCircle(p, CX, CY, RING_R, C_RING);
+    fillCircle(p, CX, CY, RING_R - ringW, C_BG);
 
     // Tick marks every 30° (major at 0/90/180/270)
     for (let b = 0; b < 360; b += 30) {
@@ -239,24 +246,38 @@ function drawDetailView(p) {
     if (state.dayOffset) p.drawString("[ tomorrow ]", F_SM, C_RISE, 8, y);
 }
 
-// ── Location fetch (module-level so button + timer can both call it) ──────────
-function doLocationFetch() {
-    const sensor = new Location({
+// ── Location fetch ────────────────────────────────────────────────────────────
+// Location is a singleton — guard against creating a second instance while one
+// is already alive (causes "single instance only" crash).
+let gps = null;
+
+function doLocationFetch(force = false) {
+    if (gps !== null) {
+        if (!force) return;
+        try { gps.close(); } catch (_) {}
+        gps = null;
+    }
+    gps = new Location({
         onSample: () => {
-            const pos = sensor.sample();
+            const pos = gps.sample();
             state.lat     = pos.latitude;
             state.lon     = pos.longitude;
             state.located = true;
             calcSun();
             saveLocation(pos.latitude, pos.longitude);
             redraw();
-            sensor.close();
-        }
+            gps.close();
+            gps = null;
+        },
+        onError: () => {
+            try { gps.close(); } catch (_) {}
+            gps = null;
+        },
     });
-    sensor.configure({
+    gps.configure({
         enableHighAccuracy: false,
         timeout: 15000,
-        maximumAge: 300000,
+        maximumAge: force ? 0 : 300000,
     });
 }
 
@@ -306,7 +327,7 @@ class AppBehavior {
                         redraw();
                         break;
                     case "select":  // force GPS refresh
-                        doLocationFetch();
+                        doLocationFetch(true);
                         break;
                     case "down":    // toggle today ↔ tomorrow
                         state.dayOffset = state.dayOffset ? 0 : 1;
