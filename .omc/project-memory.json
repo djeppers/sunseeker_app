@@ -63,8 +63,8 @@
   "hotPaths": [
     {
       "path": "src\\embeddedjs\\main.js",
-      "accessCount": 18,
-      "lastAccessed": 1777144037444,
+      "accessCount": 24,
+      "lastAccessed": 1777149378955,
       "type": "file"
     },
     {

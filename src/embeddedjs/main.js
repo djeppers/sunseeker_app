@@ -45,6 +45,13 @@ const state = {
 
 let port = null;  // set in PortBehavior.onCreate; used to trigger redraws
 
+// ── Demo mode (set DEMO = false for real device use) ──────────────────────────
+const DEMO         = true;
+const DEMO_LAT     = 55.68;   // Copenhagen
+const DEMO_LON     = 12.57;
+const DEMO_HEADING = 315;     // facing NW
+const DEMO_DATE    = new Date(2026, 2, 13, 15, 0, 0);  // March 13, 15:00 local
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const RAD = Math.PI / 180;
 
@@ -76,12 +83,12 @@ function fmtDuration(minutes) {
 
 function calcSun() {
     if (state.lat === null) return;
-    const now  = new Date();
+    const now  = DEMO ? DEMO_DATE : new Date();
     const date = state.dayOffset
         ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
         : now;
     state.times = sunTimes(state.lat, state.lon, date);
-    state.az    = sunAzimuth(state.lat, state.lon, now);  // always current time for live position
+    state.az    = sunAzimuth(state.lat, state.lon, now);
 }
 
 function saveLocation(lat, lon) {
@@ -295,26 +302,35 @@ class PortBehavior {
 // ── App behavior (sensor wiring + buttons) ────────────────────────────────────
 class AppBehavior {
     onCreate(app) {
-        loadLocation();
-        redraw();
+        if (DEMO) {
+            state.lat     = DEMO_LAT;
+            state.lon     = DEMO_LON;
+            state.heading = DEMO_HEADING;
+            state.located = true;
+            calcSun();
+            redraw();
+        } else {
+            loadLocation();
+            redraw();
 
-        // Compass — update heading on every sample
-        const compass = new Compass({
-            onSample: () => {
-                const { heading } = compass.sample();
-                if (state.heading !== heading) {
-                    state.heading = heading;
-                    redraw();
+            // Compass — update heading on every sample
+            const compass = new Compass({
+                onSample: () => {
+                    const { heading } = compass.sample();
+                    if (state.heading !== heading) {
+                        state.heading = heading;
+                        redraw();
+                    }
                 }
-            }
-        });
+            });
 
-        // Location — fetch once now, then every 10 minutes
-        doLocationFetch();
-        setInterval(doLocationFetch, 600000);
+            // Location — fetch once now, then every 10 minutes
+            doLocationFetch();
+            setInterval(doLocationFetch, 600000);
 
-        // Recalculate sun elevation every minute (bearing / elevation drift)
-        setInterval(() => { calcSun(); redraw(); }, 60000);
+            // Recalculate sun elevation every minute
+            setInterval(() => { calcSun(); redraw(); }, 60000);
+        }
 
         // Buttons
         new Button({
