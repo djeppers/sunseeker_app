@@ -38,7 +38,7 @@ const DEMO_HEADING = 315;
 const DEMO_DATE    = new Date(2026, 2, 13, 15, 0, 0);
 
 // ── Zoom ──────────────────────────────────────────────────────────────────────
-const ZOOM_FACTOR = 4;  // 4x = ±45° FOV
+const ZOOM_FACTOR = 2;  // 2x = ±90° FOV; arc pinned at top, heading diamond shows offset
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
@@ -71,8 +71,13 @@ function ringPos(bearing, r) {
     let delta = ((bearing - state.heading) % 360 + 360) % 360;
     if (delta > 180) delta -= 360;
     if (state.zoom) {
-        // Heading stays at 12 o'clock — just magnify so arcs approach top as you rotate toward them.
-        delta *= ZOOM_FACTOR;
+        // Arc pinned at 12 o'clock; heading diamond shows where you're currently facing.
+        // Rotate until the diamond reaches the top = you're aligned with the arc.
+        const zc = ((state.zoomCenter - state.heading) % 360 + 360) % 360;
+        const offset = zc > 180 ? zc - 360 : zc;
+        delta = (delta - offset) * ZOOM_FACTOR;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
         if (Math.abs(delta) > 180) { _pos.x = -9999; _pos.y = -9999; return _pos; }
     }
     const a = ((delta % 360) + 360) % 360 * RAD_C;
@@ -111,28 +116,30 @@ function fillCircle(p, cx, cy, r, color) {
     }
 }
 
-// Gradient arc from azimuthAt6 → azimuthAtMinus6, with amber→blue dither at azimuthAtMinus4.
-// Any azimuth argument may be null (partial arc rendered gracefully).
+// Gradient arc from azimuthAt6 → azimuthAtMinus6 with:
+//   - Rounded caps (fillCircle at each endpoint)
+//   - Amber (golden) → dithered blend → blue, more amber than blue
+//   - Step every 1° for smooth appearance
+// Any azimuth may be null (partial arc rendered gracefully).
 function drawGradientArc(p, az6, azM4, azM6, r) {
     const arcStart = az6  !== null ? az6  : azM4;
     const arcEnd   = azM6 !== null ? azM6 : azM4;
     if (arcStart === null || arcEnd === null) return;
 
-    // Shorter-path direction
     const cwSpan = ((arcEnd - arcStart) + 360) % 360;
     const cw     = cwSpan <= 180;
     const total  = cw ? cwSpan : 360 - cwSpan;
 
-    // Position of the -4° boundary within the arc (in step units)
     let m4Offset = null;
     if (azM4 !== null && az6 !== null) {
         const s = ((azM4 - arcStart) + 360) % 360;
         m4Offset = cw ? s : 360 - s;
     }
 
-    const DITHER = 1;  // degrees of dither zone on each side of the -4° boundary
+    const DITHER = 2;  // degrees of dither on each side of the -4° boundary
+    const DOT    = 3;  // dot radius for arc body
 
-    for (let i = 0; i <= total; i += 2) {
+    for (let i = 0; i <= total; i++) {
         const az = cw ? (arcStart + i + 360) % 360 : (arcStart - i + 360) % 360;
         const { x, y } = ringPos(az, r);
         if (x < -100) continue;
@@ -145,10 +152,18 @@ function drawGradientArc(p, az6, azM4, azM6, r) {
         } else if (i > m4Offset + DITHER) {
             color = C_BLUE;
         } else {
-            color = (i >> 1) % 2 === 0 ? C_GOLDEN : C_BLUE;  // dither alternation
+            color = i % 2 === 0 ? C_GOLDEN : C_BLUE;
         }
-        p.fillColor(color, x - 3, y - 3, 7, 7);
+        p.fillColor(color, x - DOT, y - DOT, DOT * 2 + 1, DOT * 2 + 1);
     }
+
+    // Rounded caps
+    const startColor = az6 !== null ? C_GOLDEN : C_BLUE;
+    const { x: sx, y: sy } = ringPos(arcStart, r);
+    if (sx > -100) fillCircle(p, sx, sy, DOT + 1, startColor);
+    const endColor = azM6 !== null ? C_BLUE : C_GOLDEN;
+    const { x: ex, y: ey } = ringPos(arcEnd, r);
+    if (ex > -100) fillCircle(p, ex, ey, DOT + 1, endColor);
 }
 
 // ── State calculation ─────────────────────────────────────────────────────────
@@ -223,7 +238,7 @@ function drawCompassView(p) {
     }
 
     if (state.zoom) {
-        // Fine tick marks every 5° (only those in ±45° FOV are on-screen)
+        // Fine tick marks every 5°
         for (let b = 0; b < 360; b += 5) {
             const { x, y } = ringPos(b, RING_R - ringW - 1);
             if (x < -100 || x > W) continue;
@@ -231,12 +246,18 @@ function drawCompassView(p) {
             const sz = isMaj ? 4 : 2;
             p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
         }
-        // Normal pointer at 12 o'clock — heading is always at top in zoom mode
+        // Heading indicator — white diamond showing where you're currently facing.
+        // Rotate until it reaches the amber crosshair target at 12 o'clock.
+        const { x: hx, y: hy } = ringPos(state.heading, RING_R - 3);
+        if (hx > -100) {
+            p.fillColor(C_TEXT, hx - 1, hy - 4, 3, 4);
+            p.fillColor(C_TEXT, hx - 2, hy,     5, 1);
+            p.fillColor(C_TEXT, hx - 1, hy + 1, 3, 3);
+        }
+        // Amber crosshair target at 12 o'clock = the arc direction
         const tip = CY - RING_R - 2;
-        p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
-        p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
-        p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
-        p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
+        p.fillColor(C_GOLDEN, CX - 5, tip - 1, 11, 3);
+        p.fillColor(C_GOLDEN, CX - 1, tip - 5,  3, 11);
     } else {
         // Tick marks every 30°
         for (let b = 0; b < 360; b += 30) {
