@@ -95,13 +95,14 @@ function fillCircle(p, cx, cy, r, color) {
 }
 
 // Thick arc along the compass ring between two bearings (takes the shorter path).
+// Steps every 2° to halve display-list entries.
 function drawArc(p, az1, az2, r, color) {
     let diff  = ((az2 - az1) + 360) % 360;
     let start = az1;
     if (diff > 180) { diff = 360 - diff; start = az2; }
-    for (let i = 0; i <= diff; i++) {
+    for (let i = 0; i <= diff; i += 2) {
         const { x, y } = ringPos((start + i + 360) % 360, r);
-        p.fillColor(color, x - 2, y - 2, 5, 5);
+        p.fillColor(color, x - 3, y - 3, 7, 7);  // slightly larger dot to compensate
     }
 }
 
@@ -131,20 +132,19 @@ function loadLocation() {
 function redraw() { if (port) port.invalidate(); }
 
 // ── Countdown formatting ──────────────────────────────────────────────────────
-function fmtCountdown(event, now) {
+function fmtCountdown(event, nowMs) {
     if (!event) return "--";
-    const nowMs   = now instanceof Date ? now.getTime() : now;
-    const startMs = event.start - nowMs;
-    const endMs   = event.end   - nowMs;
-    if (endMs <= 0) return "--";
-    if (startMs <= 0) {
-        const m = Math.ceil(endMs / 60000);
+    const tillEnd   = event.endMs   - nowMs;
+    const tillStart = event.startMs - nowMs;
+    if (tillEnd <= 0) return "--";
+    if (tillStart <= 0) {
+        const m = Math.ceil(tillEnd / 60000);
         return m >= 60 ? `NOW ${Math.floor(m / 60)}h${m % 60}m` : `NOW ${m}m`;
     }
-    const m = Math.floor(startMs / 60000);
+    const m = Math.floor(tillStart / 60000);
     const h = Math.floor(m / 60);
     const min = m % 60;
-    if (event.start.getDate() !== new Date(nowMs).getDate()) return `tmrw ${fmtTime(event.start)}`;
+    if (new Date(event.startMs).getDate() !== new Date(nowMs).getDate()) return `tmrw ${fmtTime(new Date(event.startMs))}`;
     return h > 0 ? `in ${h}h${min < 10 ? "0" : ""}${min}m` : `in ${m}m`;
 }
 
@@ -223,18 +223,19 @@ function drawTimerRows(p, x, y1, y2, now) {
     const nextGolden = events.find(e => e.type === "golden");
     const nextBlue   = events.find(e => e.type === "blue");
 
-    const goldenActive = nextGolden && nextGolden.start <= now;
-    const blueActive   = nextBlue   && nextBlue.start   <= now;
+    const nowMs      = now instanceof Date ? now.getTime() : now;
+    const goldenActive = nextGolden && nextGolden.startMs <= nowMs;
+    const blueActive   = nextBlue   && nextBlue.startMs   <= nowMs;
 
     // Golden row
     p.fillColor(C_GOLDEN, x, y1 + 4, 6, 6);
     p.drawString("Golden", F_SM, C_TEXT, x + 10, y1);
-    p.drawString(fmtCountdown(nextGolden, now), F_SM, goldenActive ? C_GOLDEN : C_TEXT, x + 68, y1);
+    p.drawString(fmtCountdown(nextGolden, nowMs), F_SM, goldenActive ? C_GOLDEN : C_TEXT, x + 68, y1);
 
     // Blue row
     p.fillColor(C_BLUE, x, y2 + 4, 6, 6);
     p.drawString("Blue", F_SM, C_TEXT, x + 10, y2);
-    p.drawString(fmtCountdown(nextBlue, now), F_SM, blueActive ? C_BLUE : C_TEXT, x + 68, y2);
+    p.drawString(fmtCountdown(nextBlue, nowMs), F_SM, blueActive ? C_BLUE : C_TEXT, x + 68, y2);
 }
 
 function drawZoomPanel(p) {
@@ -351,4 +352,4 @@ const SunSeeker = Application.template($ => ({
     contents: [Port($, { top: 0, bottom: 0, left: 0, right: 0, Behavior: PortBehavior })],
 }));
 
-export default new SunSeeker(null, { displayListLength: 4096, touchCount: 0, pixels: W * 8 });
+export default new SunSeeker(null, { displayListLength: 8192, touchCount: 0, pixels: W * 4 });

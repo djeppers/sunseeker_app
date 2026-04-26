@@ -88,13 +88,14 @@ function azimuthAt(lat, lon, date) {
 }
 
 function makeWindow(lat, lon, base, riseMs, setMs) {
-    const start = new Date(base + riseMs);
-    const end   = new Date(base + setMs);
+    // Use number timestamps (not Date objects) — avoids heap allocation on XS engine.
+    const startMs = base + riseMs;
+    const endMs   = base + setMs;
     return {
-        start,
-        end,
-        azimuthStart: azimuthAt(lat, lon, start),
-        azimuthEnd:   azimuthAt(lat, lon, end),
+        startMs,
+        endMs,
+        azimuthStart: azimuthAt(lat, lon, new Date(startMs)),
+        azimuthEnd:   azimuthAt(lat, lon, new Date(endMs)),
     };
 }
 
@@ -171,14 +172,15 @@ export function nextEvents(lat, lon, now) {
         const gh = goldenHour(lat, lon, date);
         const bh = blueHour(lat, lon, date);
 
+        const nowMs = now instanceof Date ? now.getTime() : now;
         const candidates = [
             gh.morning ? { type: "golden", phase: "morning", ...gh.morning } : null,
             gh.evening ? { type: "golden", phase: "evening", ...gh.evening } : null,
             bh.morning ? { type: "blue",   phase: "morning", ...bh.morning } : null,
             bh.evening ? { type: "blue",   phase: "evening", ...bh.evening } : null,
-        ].filter(ev => ev !== null && ev.end > now);
+        ].filter(ev => ev !== null && ev.endMs > nowMs);
 
-        candidates.sort((a, b) => a.start - b.start);
+        candidates.sort((a, b) => a.startMs - b.startMs);
         for (const ev of candidates) {
             if (collected.length < 4) collected.push(ev);
         }

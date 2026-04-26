@@ -29,7 +29,8 @@ function check(condition, label) {
 }
 
 const utcMin = d => d.getUTCHours() * 60 + d.getUTCMinutes();
-const dur    = w => (w.end - w.start) / 60000;  // duration in minutes
+const utcMinMs = ms => utcMin(new Date(ms));
+const dur    = w => (w.endMs - w.startMs) / 60000;  // duration in minutes
 
 // ── goldenHour ────────────────────────────────────────────────────────────────
 console.log('\n── goldenHour: Copenhagen summer solstice 2026 ──');
@@ -42,11 +43,11 @@ console.log('\n── goldenHour: Copenhagen summer solstice 2026 ──');
 
     if (gh.morning && gh.evening) {
         // Morning: starts at sunrise ~02:26 UTC, duration ~64 min (shallow sun angle at 55°N)
-        assertApprox(utcMin(gh.morning.start), 2 * 60 + 26, 8, 'CPH summer morning GH start ~02:26 UTC');
+        assertApprox(utcMinMs(gh.morning.startMs), 2 * 60 + 26, 8, 'CPH summer morning GH start ~02:26 UTC');
         assertApprox(dur(gh.morning), 64, 10, 'CPH summer morning GH duration ~64 min');
 
         // Evening: ends at sunset ~19:57 UTC, duration ~64 min
-        assertApprox(utcMin(gh.evening.end), 19 * 60 + 57, 8, 'CPH summer evening GH end ~19:57 UTC');
+        assertApprox(utcMinMs(gh.evening.endMs), 19 * 60 + 57, 8, 'CPH summer evening GH end ~19:57 UTC');
         assertApprox(dur(gh.evening), 64, 10, 'CPH summer evening GH duration ~64 min');
 
         // Morning azimuth: sun in NE sky at solstice (~40-55°)
@@ -108,11 +109,12 @@ console.log('\n── blueHour: Copenhagen summer solstice 2026 ──');
         // Evening BH starts after golden hour ends
         const gh = goldenHour(55.68, 12.57, d);
         if (gh.evening) {
-            check(bh.evening.start >= gh.evening.end,
+            check(bh.evening.startMs >= gh.evening.endMs,
                 'CPH summer evening BH starts after GH ends');
         }
         // BH duration shorter than GH at high latitude in summer
-        check(dur(bh.evening) > 0 && dur(bh.evening) < dur(goldenHour(55.68, 12.57, d).evening ?? { start: 0, end: 99e9 }),
+        const ghEve = goldenHour(55.68, 12.57, d).evening;
+        check(dur(bh.evening) > 0 && dur(bh.evening) < (ghEve ? dur(ghEve) : 99999),
             `CPH summer evening BH duration ${dur(bh.evening).toFixed(0)} min (shorter than GH)`);
     }
 }
@@ -164,10 +166,10 @@ console.log('\n── nextEvents ──');
     const d  = new Date(Date.UTC(2026, 5, 21));
     const gh = goldenHour(55.68, 12.57, d);
     if (gh.evening) {
-        const midGH = new Date(gh.evening.start.getTime() + 10 * 60000);
+        const midGH = new Date(gh.evening.startMs + 10 * 60000);
         const evs = nextEvents(55.68, 12.57, midGH);
         check(evs.length > 0, 'nextEvents during GH returns events');
-        check(evs[0].type === "golden" && evs[0].start <= midGH,
+        check(evs[0].type === "golden" && evs[0].startMs <= midGH.getTime(),
             'First event is active golden hour (start in past)');
     }
 }
@@ -177,7 +179,7 @@ console.log('\n── nextEvents ──');
     const lateNight = new Date(Date.UTC(2026, 5, 21, 22, 0, 0));
     const evs = nextEvents(55.68, 12.57, lateNight);
     check(evs.length > 0, 'nextEvents late at night returns events');
-    check(evs[0].start > lateNight, 'First event is in the future (tomorrow)');
+    check(evs[0].startMs > lateNight.getTime(), 'First event is in the future (tomorrow)');
 }
 
 {
@@ -202,7 +204,7 @@ console.log('\n── Polar edge cases ──');
     check(bh.morning === null && bh.evening === null, 'Tromsø June — no blue hour (polar day)');
 
     const evs = nextEvents(69.65, 18.96, new Date(Date.UTC(2026, 5, 21, 12, 0, 0)));
-    check(evs.every(e => e.start > new Date(Date.UTC(2026, 5, 21))), 'Tromsø June — no events crash');
+    check(evs.every(e => e.startMs > Date.UTC(2026, 5, 21)), 'Tromsø June — no events crash');
 }
 
 {
@@ -221,7 +223,7 @@ console.log('\n── Polar edge cases ──');
     const gh = goldenHour(68.0, 18.96, d);
     check(gh !== null, 'Arctic winter — goldenHour does not throw');
     if (gh.morning) {
-        check(gh.morning.end > gh.morning.start, 'Arctic winter — morning GH window is valid');
+        check(gh.morning.endMs > gh.morning.startMs, 'Arctic winter — morning GH window is valid');
     }
 }
 
