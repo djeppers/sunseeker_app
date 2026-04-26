@@ -2,7 +2,7 @@ import {} from "piu/MC";
 import Compass from "embedded:sensor/Compass";
 import Location from "embedded:sensor/Location";
 import Button from "pebble/button";
-import { lightArc, nextEvents } from "sun";
+import { lightArc } from "sun";
 
 // ── Screen geometry ───────────────────────────────────────────────────────────
 const W       = screen.width;
@@ -166,6 +166,23 @@ function drawGradientArc(p, az6, azM4, azM6, r) {
     }
 }
 
+// ── Event extraction (reuses already-computed arc — no extra solarParams calls) ──
+function eventsFromArc(arc, nowMs) {
+    const ev = [];
+    if (arc.morning) {
+        const { goldenStartMs: p6, goldenEndMs: m4, blueEndMs: m6 } = arc.morning;
+        if (m6 !== null && m4 !== null) ev.push({ type: "blue",   phase: "morning", startMs: m6, endMs: m4 });
+        if (m4 !== null && p6 !== null) ev.push({ type: "golden", phase: "morning", startMs: m4, endMs: p6 });
+    }
+    if (arc.evening) {
+        const { goldenStartMs: p6, goldenEndMs: m4, blueEndMs: m6 } = arc.evening;
+        if (p6 !== null && m4 !== null) ev.push({ type: "golden", phase: "evening", startMs: p6, endMs: m4 });
+        if (m4 !== null && m6 !== null) ev.push({ type: "blue",   phase: "evening", startMs: m4, endMs: m6 });
+    }
+    ev.sort((a, b) => a.startMs - b.startMs);
+    return ev.filter(e => e.endMs > nowMs);
+}
+
 // ── State calculation ─────────────────────────────────────────────────────────
 function fmtCountdown(event, nowMs) {
     if (!event) return "--";
@@ -189,8 +206,20 @@ function calcState() {
     if (state.lat === null) return;
     const now   = DEMO ? DEMO_DATE : new Date();
     const nowMs = now instanceof Date ? now.getTime() : now;
+
+    // One lightArc call for today (9 solarParams). Reuse the result for events
+    // instead of calling nextEvents() which would trigger 2 more lightArc calls.
     state.arc    = lightArc(state.lat, state.lon, now);
-    state.events = nextEvents(state.lat, state.lon, now);
+    state.events = eventsFromArc(state.arc, nowMs);
+
+    // If today's arc has no upcoming events, compute tomorrow's (one extra call)
+    if (state.events.length < 2) {
+        const tmrw = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        const tmrwArc = lightArc(state.lat, state.lon, tmrw);
+        const tmrwEv  = eventsFromArc(tmrwArc, nowMs);
+        for (const e of tmrwEv) { if (state.events.length < 4) state.events.push(e); }
+    }
+
     state.nextGolden   = state.events.find(e => e.type === "golden") || null;
     state.nextBlue     = state.events.find(e => e.type === "blue")   || null;
     state.goldenActive = state.nextGolden !== null && state.nextGolden.startMs <= nowMs;
