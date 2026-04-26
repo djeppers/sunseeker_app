@@ -38,7 +38,8 @@ const DEMO_HEADING = 315;
 const DEMO_DATE    = new Date(2026, 2, 13, 15, 0, 0);
 
 // ── Zoom ──────────────────────────────────────────────────────────────────────
-const ZOOM_FACTOR = 2;  // 2x = ±90° FOV; arc pinned at top, heading diamond shows offset
+// Zoom mode: same ring as normal (heading at top, arc at natural position),
+// finer ticks + alignment text for precision. No angular distortion.
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
@@ -68,19 +69,8 @@ const RAD_C = Math.PI / 180;
 const _pos = { x: 0, y: 0 };
 
 function ringPos(bearing, r) {
-    let delta = ((bearing - state.heading) % 360 + 360) % 360;
-    if (delta > 180) delta -= 360;
-    if (state.zoom) {
-        // Arc pinned at 12 o'clock; heading diamond shows where you're currently facing.
-        // Rotate until the diamond reaches the top = you're aligned with the arc.
-        const zc = ((state.zoomCenter - state.heading) % 360 + 360) % 360;
-        const offset = zc > 180 ? zc - 360 : zc;
-        delta = (delta - offset) * ZOOM_FACTOR;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-        if (Math.abs(delta) > 180) { _pos.x = -9999; _pos.y = -9999; return _pos; }
-    }
-    const a = ((delta % 360) + 360) % 360 * RAD_C;
+    const delta = ((bearing - state.heading) % 360 + 360) % 360;
+    const a = delta * RAD_C;
     _pos.x = CX + Math.round(r * Math.sin(a));
     _pos.y = CY - Math.round(r * Math.cos(a));
     return _pos;
@@ -267,26 +257,19 @@ function drawCompassView(p) {
     }
 
     if (state.zoom) {
-        // Fine tick marks every 5°
-        for (let b = 0; b < 360; b += 5) {
+        // Fine ticks every 10° — same ring as normal, just higher resolution
+        for (let b = 0; b < 360; b += 10) {
+            const isMaj = b % 90 === 0;
             const { x, y } = ringPos(b, RING_R - ringW - 1);
-            if (x < -100 || x > W) continue;
-            const isMaj = b % 45 === 0;
             const sz = isMaj ? 4 : 2;
             p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
         }
-        // Heading indicator — white diamond showing where you're currently facing.
-        // Rotate until it reaches the amber crosshair target at 12 o'clock.
-        const { x: hx, y: hy } = ringPos(state.heading, RING_R - 3);
-        if (hx > -100) {
-            p.fillColor(C_TEXT, hx - 1, hy - 4, 3, 4);
-            p.fillColor(C_TEXT, hx - 2, hy,     5, 1);
-            p.fillColor(C_TEXT, hx - 1, hy + 1, 3, 3);
-        }
-        // Amber crosshair target at 12 o'clock = the arc direction
+        // Same pointer at top — heading direction is always at 12 o'clock
         const tip = CY - RING_R - 2;
-        p.fillColor(C_GOLDEN, CX - 5, tip - 1, 11, 3);
-        p.fillColor(C_GOLDEN, CX - 1, tip - 5,  3, 11);
+        p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
+        p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
+        p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
+        p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
     } else {
         // Tick marks every 30°
         for (let b = 0; b < 360; b += 30) {
