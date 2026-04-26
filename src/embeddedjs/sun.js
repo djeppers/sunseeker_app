@@ -1,5 +1,8 @@
 // Solar/twilight calculator for SunSeeker.
 // Pure math, no Pebble dependencies — unit-testable in Node.js.
+// Elevation boundaries follow the PhotoPills standard:
+//   Golden hour: sun between +6° and -4°
+//   Blue hour:   sun between -4° and -6°
 
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
@@ -27,14 +30,14 @@ function solarParams(jd) {
     const C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * Math.sin(Mrad)
             + (0.019993 - 0.000101 * T) * Math.sin(2 * Mrad)
             + 0.000289 * Math.sin(3 * Mrad);
-    const omega = 125.04 - 1934.136 * T;
+    const omega  = 125.04 - 1934.136 * T;
     const lambda = L0 + C - 0.00569 - 0.00478 * Math.sin(omega * DEG);
-    const epsilon0 = 23 + (26 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60;
-    const epsilon = epsilon0 + 0.00256 * Math.cos(omega * DEG);
-    const decl = Math.asin(Math.sin(epsilon * DEG) * Math.sin(lambda * DEG)) * RAD;
-    const e = 0.016708634 - T * (0.000042037 + 0.0000001267 * T);
-    const y = Math.tan((epsilon * DEG) / 2) ** 2;
-    const eqt = 4 * RAD * (
+    const eps0   = 23 + (26 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60;
+    const eps    = eps0 + 0.00256 * Math.cos(omega * DEG);
+    const decl   = Math.asin(Math.sin(eps * DEG) * Math.sin(lambda * DEG)) * RAD;
+    const e      = 0.016708634 - T * (0.000042037 + 0.0000001267 * T);
+    const y      = Math.tan((eps * DEG) / 2) ** 2;
+    const eqt    = 4 * RAD * (
         y * Math.sin(2 * L0 * DEG)
         - 2 * e * Math.sin(Mrad)
         + 4 * e * y * Math.sin(Mrad) * Math.cos(2 * L0 * DEG)
@@ -44,9 +47,8 @@ function solarParams(jd) {
     return { decl, eqt };
 }
 
-// cosHA < -1 → sun always above this zenith (alwaysAbove)
-// cosHA > 1  → sun never reaches this zenith (alwaysBelow)
-function computeHourAngle(lat, decl, zenith = 90.833) {
+// cosHA < -1 → sun always above zenith; cosHA > 1 → sun never reaches zenith.
+function computeHourAngle(lat, decl, zenith) {
     const cosHA = (Math.cos(zenith * DEG) - Math.sin(lat * DEG) * Math.sin(decl * DEG))
                 / (Math.cos(lat * DEG) * Math.cos(decl * DEG));
     if (cosHA < -1) return { ha: null, alwaysAbove: true,  alwaysBelow: false };
@@ -65,8 +67,7 @@ function riseSetMs(lat, lon, date, zenith) {
     return { riseMs: noonMs - haMs, setMs: noonMs + haMs };
 }
 
-// Compass azimuth (0=N, 90=E, 180=S, 270=W) at a specific datetime.
-// Works for sub-horizon positions (blue hour).
+// Compass azimuth (0=N, 90=E, 180=S, 270=W). Works below the horizon (for twilight).
 function azimuthAt(lat, lon, date) {
     const { decl, eqt } = solarParams(toJulianDay(date));
     const utcMin = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
@@ -77,7 +78,7 @@ function azimuthAt(lat, lon, date) {
         Math.sin(lat * DEG) * Math.sin(decl * DEG)
         + Math.cos(lat * DEG) * Math.cos(decl * DEG) * Math.cos(ha * DEG)
     ));
-    const z = Math.acos(cosZ) * RAD;
+    const z    = Math.acos(cosZ) * RAD;
     const sinZ = Math.sin(z * DEG);
     if (sinZ < 1e-10) return 0;
     const cosAz = Math.max(-1, Math.min(1,
@@ -87,59 +88,55 @@ function azimuthAt(lat, lon, date) {
     return ha > 0 ? (a + 180) % 360 : (540 - a) % 360;
 }
 
-function makeWindow(lat, lon, base, riseMs, setMs) {
-    // Use number timestamps (not Date objects) — avoids heap allocation on XS engine.
-    const startMs = base + riseMs;
-    const endMs   = base + setMs;
-    return {
-        startMs,
-        endMs,
-        azimuthStart: azimuthAt(lat, lon, new Date(startMs)),
-        azimuthEnd:   azimuthAt(lat, lon, new Date(endMs)),
-    };
-}
+// lightArc — the combined golden + blue hour arc for one day.
+//
+// Each half (morning/evening) describes three elevation boundaries:
+//   +6°  → goldenStartMs / azimuthAt6      (golden begins / day ends)
+//   -4°  → goldenEndMs   / azimuthAtMinus4 (golden ends, blue begins)
+//   -6°  → blueEndMs     / azimuthAtMinus6 (blue ends / darkness)
+//
+// All time fields are ms-since-epoch (not Date objects, to save heap on XS).
+// Any field may be null if the sun never crosses that elevation on this day.
+//
+// Rendering:  draw arc from azimuthAt6 → azimuthAtMinus6.
+//   Amber portion:  azimuthAt6 → azimuthAtMinus4
+//   Dither zone:    ~3° around azimuthAtMinus4
+//   Blue portion:   azimuthAtMinus4 → azimuthAtMinus6
+export function lightArc(lat, lon, date) {
+    const base   = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+    const plus6  = riseSetMs(lat, lon, date, 84);   // zenith 84° = +6° elevation
+    const minus4 = riseSetMs(lat, lon, date, 94);   // zenith 94° = -4° elevation
+    const minus6 = riseSetMs(lat, lon, date, 96);   // zenith 96° = -6° elevation
 
-// goldenHour — { morning, evening } windows where sun is 0°–6° above horizon.
-// Each window is { start, end, azimuthStart, azimuthEnd } or null.
-// Special case: if sun rises but never reaches 6°, the whole day is golden hour
-// and is reported as a single morning window with evening = null.
-export function goldenHour(lat, lon, date) {
-    const base    = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-    const horizon = riseSetMs(lat, lon, date, 90.833);
-    const sixDeg  = riseSetMs(lat, lon, date, 84);
-
-    if (!horizon) return { morning: null, evening: null };
-
-    if (!sixDeg) {
-        // Sun rises but never reaches 6° — entire day is golden hour
+    function half(p6ms, m4ms, m6ms) {
+        if (p6ms === null && m4ms === null) return null;
         return {
-            morning: makeWindow(lat, lon, base, horizon.riseMs, horizon.setMs),
-            evening: null,
+            goldenStartMs:    p6ms  !== null ? base + p6ms  : null,
+            goldenEndMs:      m4ms  !== null ? base + m4ms  : null,
+            blueEndMs:        m6ms  !== null ? base + m6ms  : null,
+            azimuthAt6:       p6ms  !== null ? azimuthAt(lat, lon, new Date(base + p6ms))  : null,
+            azimuthAtMinus4:  m4ms  !== null ? azimuthAt(lat, lon, new Date(base + m4ms))  : null,
+            azimuthAtMinus6:  m6ms  !== null ? azimuthAt(lat, lon, new Date(base + m6ms))  : null,
         };
     }
 
+    // Morning (sun rising):  -6° → -4° → +6°
+    // Evening (sun setting): +6° → -4° → -6°
     return {
-        morning: makeWindow(lat, lon, base, horizon.riseMs, sixDeg.riseMs),
-        evening: makeWindow(lat, lon, base, sixDeg.setMs,   horizon.setMs),
+        morning: half(
+            plus6  ? plus6.riseMs  : null,
+            minus4 ? minus4.riseMs : null,
+            minus6 ? minus6.riseMs : null,
+        ),
+        evening: half(
+            plus6  ? plus6.setMs  : null,
+            minus4 ? minus4.setMs : null,
+            minus6 ? minus6.setMs : null,
+        ),
     };
 }
 
-// blueHour — { morning, evening } windows where sun is 4°–6° below horizon (civil twilight).
-// Each window is { start, end, azimuthStart, azimuthEnd } or null.
-export function blueHour(lat, lon, date) {
-    const base    = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-    const fourDeg = riseSetMs(lat, lon, date, 94);  // -4° elevation
-    const sixDeg  = riseSetMs(lat, lon, date, 96);  // -6° elevation
-
-    if (!fourDeg || !sixDeg) return { morning: null, evening: null };
-
-    return {
-        morning: makeWindow(lat, lon, base, sixDeg.riseMs,  fourDeg.riseMs),
-        evening: makeWindow(lat, lon, base, fourDeg.setMs,  sixDeg.setMs),
-    };
-}
-
-// sunPosition — current azimuth (0-360) and elevation (degrees, negative = below horizon).
+// sunPosition — current azimuth and elevation (degrees, negative = below horizon).
 export function sunPosition(lat, lon, date) {
     const { decl, eqt } = solarParams(toJulianDay(date));
     const utcMin = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
@@ -163,26 +160,40 @@ export function sunPosition(lat, lon, date) {
     return { azimuth, elevation: 90 - z };
 }
 
-// nextEvents — chronologically ordered upcoming events (includes currently active ones).
-// Returns up to 4 events, wrapping into tomorrow if needed.
+// nextEvents — upcoming golden/blue hour events, chronological, up to 4, wrapping to tomorrow.
+// Includes currently active events (start in past, end in future).
+// Uses ms timestamps throughout to avoid Date object allocation.
 export function nextEvents(lat, lon, now) {
     const collected = [];
+    const nowMs = now instanceof Date ? now.getTime() : now;
+
     for (let d = 0; d <= 1 && collected.length < 4; d++) {
         const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d));
-        const gh = goldenHour(lat, lon, date);
-        const bh = blueHour(lat, lon, date);
+        const arc  = lightArc(lat, lon, date);
+        const candidates = [];
 
-        const nowMs = now instanceof Date ? now.getTime() : now;
-        const candidates = [
-            gh.morning ? { type: "golden", phase: "morning", ...gh.morning } : null,
-            gh.evening ? { type: "golden", phase: "evening", ...gh.evening } : null,
-            bh.morning ? { type: "blue",   phase: "morning", ...bh.morning } : null,
-            bh.evening ? { type: "blue",   phase: "evening", ...bh.evening } : null,
-        ].filter(ev => ev !== null && ev.endMs > nowMs);
+        if (arc.morning) {
+            const { goldenStartMs: p6, goldenEndMs: m4, blueEndMs: m6 } = arc.morning;
+            // Morning blue:   -6° rising → -4° rising
+            if (m6 !== null && m4 !== null)
+                candidates.push({ type: "blue",   phase: "morning", startMs: m6, endMs: m4 });
+            // Morning golden: -4° rising → +6° rising
+            if (m4 !== null && p6 !== null)
+                candidates.push({ type: "golden", phase: "morning", startMs: m4, endMs: p6 });
+        }
+        if (arc.evening) {
+            const { goldenStartMs: p6, goldenEndMs: m4, blueEndMs: m6 } = arc.evening;
+            // Evening golden: +6° setting → -4° setting
+            if (p6 !== null && m4 !== null)
+                candidates.push({ type: "golden", phase: "evening", startMs: p6, endMs: m4 });
+            // Evening blue:   -4° setting → -6° setting
+            if (m4 !== null && m6 !== null)
+                candidates.push({ type: "blue",   phase: "evening", startMs: m4, endMs: m6 });
+        }
 
         candidates.sort((a, b) => a.startMs - b.startMs);
         for (const ev of candidates) {
-            if (collected.length < 4) collected.push(ev);
+            if (ev.endMs > nowMs && collected.length < 4) collected.push(ev);
         }
     }
     return collected;

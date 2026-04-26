@@ -2,15 +2,15 @@ import {} from "piu/MC";
 import Compass from "embedded:sensor/Compass";
 import Location from "embedded:sensor/Location";
 import Button from "pebble/button";
-import { goldenHour, blueHour, nextEvents } from "sun";
+import { lightArc, nextEvents } from "sun";
 
 // ── Screen geometry ───────────────────────────────────────────────────────────
-const W      = screen.width;
-const H      = screen.height;
+const W       = screen.width;
+const H       = screen.height;
 const IS_ROUND = W === H;
-const CX     = W >> 1;
-const RING_R = Math.round(Math.min(W, H) * 0.36) | 0;
-const CY     = IS_ROUND ? (H >> 1) : Math.round(H * 0.40) | 0;
+const CX      = W >> 1;
+const RING_R  = Math.round(Math.min(W, H) * 0.36) | 0;
+const CY      = IS_ROUND ? (H >> 1) : Math.round(H * 0.40) | 0;
 const PANEL_Y = CY + RING_R + 8;
 
 // ── Colors ────────────────────────────────────────────────────────────────────
@@ -38,19 +38,14 @@ const DEMO_HEADING = 315;
 const DEMO_DATE    = new Date(2026, 2, 13, 15, 0, 0);
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const ZOOM_FACTOR = 4;  // 4× zoom = ±45° FOV
-
 const state = {
-    heading:     0,
-    lat:         null,
-    lon:         null,
-    located:     false,
-    gh:          null,   // goldenHour() result
-    bh:          null,   // blueHour() result
-    events:      [],     // nextEvents() result
-    zoom:         false,
-    zoomCenter:   0,
-    // Pre-computed in calcState so draw functions allocate nothing:
+    heading:      0,
+    lat:          null,
+    lon:          null,
+    located:      false,
+    arc:          null,   // lightArc() result
+    events:       [],     // nextEvents() result
+    // Pre-computed each calcState so draw functions allocate nothing:
     nextGolden:   null,
     nextBlue:     null,
     goldenActive: false,
@@ -64,42 +59,22 @@ let port = null;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const RAD_C = Math.PI / 180;
 
-// Reuse one object to avoid allocating a new {x,y} on every ringPos call.
-// Callers must read x/y before the next ringPos call.
+// Reuse a single object — callers must read x/y before the next ringPos call.
 const _pos = { x: 0, y: 0 };
 
 function ringPos(bearing, r) {
-    let delta = ((bearing - state.heading) % 360 + 360) % 360;
-    if (delta > 180) delta -= 360;  // [-180, 180]
-    if (state.zoom) {
-        const zc = ((state.zoomCenter - state.heading) % 360 + 360) % 360;
-        const offset = zc > 180 ? zc - 360 : zc;
-        delta = (delta - offset) * ZOOM_FACTOR;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-        if (Math.abs(delta) > 180) { _pos.x = -9999; _pos.y = -9999; return _pos; }
-    }
-    const a = ((delta % 360) + 360) % 360 * RAD_C;
+    const delta = ((bearing - state.heading) % 360 + 360) % 360;
+    const a = delta * RAD_C;
     _pos.x = CX + Math.round(r * Math.sin(a));
     _pos.y = CY - Math.round(r * Math.cos(a));
     return _pos;
 }
 
-// Bearing of the next event's arc midpoint — used to set zoom center.
-function computeZoomCenter() {
-    const ev = state.events[0];
-    if (ev) return (ev.azimuthStart + ev.azimuthEnd) / 2;
-    if (state.gh?.evening) return (state.gh.evening.azimuthStart + state.gh.evening.azimuthEnd) / 2;
-    if (state.gh?.morning) return (state.gh.morning.azimuthStart + state.gh.morning.azimuthEnd) / 2;
-    return 270;
-}
-
-function fmtTime(d) {
-    if (!d) return "--:--";
+function fmtTime(ms) {
+    const d = new Date(ms);
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-// Filled circle via scanline (Poco has no arc primitive)
 function fillCircle(p, cx, cy, r, color) {
     for (let dy = -r; dy <= r; dy++) {
         const dx = Math.round(Math.sqrt(r * r - dy * dy));
@@ -107,28 +82,71 @@ function fillCircle(p, cx, cy, r, color) {
     }
 }
 
-// Thick arc along the compass ring between two bearings (takes the shorter path).
-// Steps every 2° to halve display-list entries.
-function drawArc(p, az1, az2, r, color) {
-    let diff  = ((az2 - az1) + 360) % 360;
-    let start = az1;
-    if (diff > 180) { diff = 360 - diff; start = az2; }
-    for (let i = 0; i <= diff; i += 2) {
-        const { x, y } = ringPos((start + i + 360) % 360, r);
-        if (x < -100) continue;  // off-screen (zoom mode clips to ±45° FOV)
+// Gradient arc from azimuthAt6 → azimuthAtMinus6, with amber→blue dither at azimuthAtMinus4.
+// Any azimuth argument may be null (partial arc rendered gracefully).
+function drawGradientArc(p, az6, azM4, azM6, r) {
+    const arcStart = az6  !== null ? az6  : azM4;
+    const arcEnd   = azM6 !== null ? azM6 : azM4;
+    if (arcStart === null || arcEnd === null) return;
+
+    // Shorter-path direction
+    const cwSpan = ((arcEnd - arcStart) + 360) % 360;
+    const cw     = cwSpan <= 180;
+    const total  = cw ? cwSpan : 360 - cwSpan;
+
+    // Position of the -4° boundary within the arc (in step units)
+    let m4Offset = null;
+    if (azM4 !== null && az6 !== null) {
+        const s = ((azM4 - arcStart) + 360) % 360;
+        m4Offset = cw ? s : 360 - s;
+    }
+
+    const DITHER = 3;  // degrees of dither zone on each side of the -4° boundary
+
+    for (let i = 0; i <= total; i += 2) {
+        const az = cw ? (arcStart + i + 360) % 360 : (arcStart - i + 360) % 360;
+        const { x, y } = ringPos(az, r);
+        if (x < -100) continue;
+
+        let color;
+        if (m4Offset === null) {
+            color = az6 !== null ? C_GOLDEN : C_BLUE;
+        } else if (i < m4Offset - DITHER) {
+            color = C_GOLDEN;
+        } else if (i > m4Offset + DITHER) {
+            color = C_BLUE;
+        } else {
+            color = (i >> 1) % 2 === 0 ? C_GOLDEN : C_BLUE;  // dither alternation
+        }
         p.fillColor(color, x - 3, y - 3, 7, 7);
     }
 }
 
 // ── State calculation ─────────────────────────────────────────────────────────
+function fmtCountdown(event, nowMs) {
+    if (!event) return "--";
+    const tillEnd   = event.endMs   - nowMs;
+    const tillStart = event.startMs - nowMs;
+    if (tillEnd <= 0) return "--";
+    if (tillStart <= 0) {
+        const m = Math.ceil(tillEnd / 60000);
+        return m >= 60 ? `NOW ${Math.floor(m / 60)}h${m % 60}m` : `NOW ${m}m`;
+    }
+    const m   = Math.floor(tillStart / 60000);
+    const h   = Math.floor(m / 60);
+    const min = m % 60;
+    // Day comparison via integer UTC-day arithmetic (no Date allocation)
+    if (((event.startMs / 86400000) | 0) !== ((nowMs / 86400000) | 0))
+        return `tmrw ${fmtTime(event.startMs)}`;
+    return h > 0 ? `in ${h}h${min < 10 ? "0" : ""}${min}m` : `in ${m}m`;
+}
+
 function calcState() {
     if (state.lat === null) return;
     const now   = DEMO ? DEMO_DATE : new Date();
     const nowMs = now instanceof Date ? now.getTime() : now;
-    state.gh     = goldenHour(state.lat, state.lon, now);
-    state.bh     = blueHour(state.lat, state.lon, now);
+    state.arc    = lightArc(state.lat, state.lon, now);
     state.events = nextEvents(state.lat, state.lon, now);
-    // Pre-compute everything the draw functions need — zero allocations during draw.
     state.nextGolden   = state.events.find(e => e.type === "golden") || null;
     state.nextBlue     = state.events.find(e => e.type === "blue")   || null;
     state.goldenActive = state.nextGolden !== null && state.nextGolden.startMs <= nowMs;
@@ -153,89 +171,49 @@ function loadLocation() {
 
 function redraw() { if (port) port.invalidate(); }
 
-// ── Countdown formatting ──────────────────────────────────────────────────────
-function fmtCountdown(event, nowMs) {
-    if (!event) return "--";
-    const tillEnd   = event.endMs   - nowMs;
-    const tillStart = event.startMs - nowMs;
-    if (tillEnd <= 0) return "--";
-    if (tillStart <= 0) {
-        const m = Math.ceil(tillEnd / 60000);
-        return m >= 60 ? `NOW ${Math.floor(m / 60)}h${m % 60}m` : `NOW ${m}m`;
-    }
-    const m = Math.floor(tillStart / 60000);
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    if (new Date(event.startMs).getDate() !== new Date(nowMs).getDate()) return `tmrw ${fmtTime(new Date(event.startMs))}`;
-    return h > 0 ? `in ${h}h${min < 10 ? "0" : ""}${min}m` : `in ${m}m`;
-}
-
 // ── Drawing ───────────────────────────────────────────────────────────────────
 function drawCompassView(p) {
     p.fillColor(C_BG, 0, 0, W, H);
 
-    // Circular compass ring
+    // Circular ring
     const ringW = 5;
     fillCircle(p, CX, CY, RING_R, C_RING);
     fillCircle(p, CX, CY, RING_R - ringW, C_BG);
 
-    // Golden and blue hour arcs on the ring surface
+    // Gradient arcs (amber→blue with dither at the -4° boundary)
     const arcR = RING_R - 2;
-    if (state.gh) {
-        if (state.gh.morning) drawArc(p, state.gh.morning.azimuthStart, state.gh.morning.azimuthEnd, arcR, C_GOLDEN);
-        if (state.gh.evening) drawArc(p, state.gh.evening.azimuthStart, state.gh.evening.azimuthEnd, arcR, C_GOLDEN);
-    }
-    if (state.bh) {
-        if (state.bh.morning) drawArc(p, state.bh.morning.azimuthStart, state.bh.morning.azimuthEnd, arcR, C_BLUE);
-        if (state.bh.evening) drawArc(p, state.bh.evening.azimuthStart, state.bh.evening.azimuthEnd, arcR, C_BLUE);
-    }
-
-    if (state.zoom) {
-        // Fine tick marks every 5° (only those within ±45° FOV will be on-screen)
-        for (let b = 0; b < 360; b += 5) {
-            const isMaj = b % 45 === 0;
-            const { x, y } = ringPos(b, RING_R - ringW - 1);
-            if (x < 0 || x > W) continue;
-            const sz = isMaj ? 4 : 2;
-            p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
+    if (state.arc) {
+        if (state.arc.morning) {
+            const m = state.arc.morning;
+            drawGradientArc(p, m.azimuthAt6, m.azimuthAtMinus4, m.azimuthAtMinus6, arcR);
         }
-
-        // Heading indicator — white diamond on the ring showing where you face
-        const { x: hx, y: hy } = ringPos(state.heading, RING_R - 3);
-        if (hx > -100) {
-            p.fillColor(C_TEXT, hx - 1, hy - 4, 3, 4);  // diamond top
-            p.fillColor(C_TEXT, hx - 2, hy,     5, 1);  // diamond mid
-            p.fillColor(C_TEXT, hx - 1, hy + 1, 3, 3);  // diamond bottom
+        if (state.arc.evening) {
+            const e = state.arc.evening;
+            drawGradientArc(p, e.azimuthAt6, e.azimuthAtMinus4, e.azimuthAtMinus6, arcR);
         }
-
-        // Target crosshair at 12 o'clock (= zoom center direction)
-        const tip = CY - RING_R - 2;
-        p.fillColor(C_GOLDEN, CX - 5, tip - 1, 11, 3);
-        p.fillColor(C_GOLDEN, CX - 1, tip - 5,  3, 11);
-    } else {
-        // Normal tick marks every 30°
-        for (let b = 0; b < 360; b += 30) {
-            const isMaj = b % 90 === 0;
-            const { x, y } = ringPos(b, RING_R - ringW - 1);
-            const sz = isMaj ? 4 : 2;
-            p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
-        }
-
-        // Cardinal labels
-        for (const [b, ltr, col] of [[0, "N", C_NORTH], [90, "E", C_CARD], [180, "S", C_CARD], [270, "W", C_CARD]]) {
-            const { x, y } = ringPos(b, RING_R - 22);
-            p.drawString(ltr, F_MD, col, x - 5, y - 8);
-        }
-
-        // Fixed downward pointer at 12 o'clock
-        const tip = CY - RING_R - 2;
-        p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
-        p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
-        p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
-        p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
     }
 
-    // Timer section
+    // Tick marks every 30°
+    for (let b = 0; b < 360; b += 30) {
+        const isMaj = b % 90 === 0;
+        const { x, y } = ringPos(b, RING_R - ringW - 1);
+        const sz = isMaj ? 4 : 2;
+        p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
+    }
+
+    // Cardinal labels
+    for (const [b, ltr, col] of [[0, "N", C_NORTH], [90, "E", C_CARD], [180, "S", C_CARD], [270, "W", C_CARD]]) {
+        const { x, y } = ringPos(b, RING_R - 22);
+        p.drawString(ltr, F_MD, col, x - 5, y - 8);
+    }
+
+    // Fixed downward pointer at 12 o'clock
+    const tip = CY - RING_R - 2;
+    p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
+    p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
+    p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
+    p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
+
     if (IS_ROUND) drawTimerCenter(p);
     else          drawTimerPanel(p);
 }
@@ -250,43 +228,14 @@ function drawTimerRows(p, x, y1, y2) {
     p.drawString(state.fmtBlue, F_SM, state.blueActive ? C_BLUE : C_TEXT, x + 68, y2);
 }
 
-function drawZoomPanel(p) {
-    p.fillColor(C_PANEL, 0, PANEL_Y, W, H - PANEL_Y);
-    const diff = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
-    const deg  = diff > 180 ? diff - 360 : diff;  // [-180, 180]
-    const absDeg = Math.abs(Math.round(deg));
-    let str;
-    if (absDeg <= 2)       str = "Aligned!";
-    else if (deg > 0)      str = `${absDeg}deg L`;
-    else                   str = `${absDeg}deg R`;
-    p.drawString("ZOOM", F_SM, C_GOLDEN, 6, PANEL_Y + 6);
-    p.drawString(str, F_MD, absDeg <= 2 ? C_GOLDEN : C_TEXT, 52, PANEL_Y + 4);
-}
-
 function drawTimerPanel(p) {
     p.fillColor(C_PANEL, 0, PANEL_Y, W, H - PANEL_Y);
-    if (!state.located) {
-        p.drawString("Locating...", F_SM, C_DIM, 6, PANEL_Y + 8);
-        return;
-    }
-    if (state.zoom) { drawZoomPanel(p); return; }
+    if (!state.located) { p.drawString("Locating...", F_SM, C_DIM, 6, PANEL_Y + 8); return; }
     drawTimerRows(p, 6, PANEL_Y + 6, PANEL_Y + 26);
 }
 
 function drawTimerCenter(p) {
-    if (!state.located) {
-        p.drawString("Locating...", F_SM, C_DIM, CX - 36, CY - 8);
-        return;
-    }
-    if (state.zoom) {
-        const diff   = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
-        const deg    = diff > 180 ? diff - 360 : diff;
-        const absDeg = Math.abs(Math.round(deg));
-        const str    = absDeg <= 2 ? "Aligned!" : (deg > 0 ? `${absDeg}deg L` : `${absDeg}deg R`);
-        p.drawString("ZOOM", F_SM, C_GOLDEN, CX - 18, CY - 10);
-        p.drawString(str, F_SM, absDeg <= 2 ? C_GOLDEN : C_TEXT, CX - 26, CY + 4);
-        return;
-    }
+    if (!state.located) { p.drawString("Locating...", F_SM, C_DIM, CX - 36, CY - 8); return; }
     drawTimerRows(p, CX - 52, CY - 12, CY + 6);
 }
 
@@ -340,16 +289,10 @@ class AppBehavior {
         }
 
         new Button({
-            types: ["up", "select"],
-            onPush(down, type) {
-                if (!down) return;
-                if (type === "up") {
-                    state.zoom = !state.zoom;
-                    if (state.zoom) state.zoomCenter = computeZoomCenter();
-                    redraw();
-                } else if (type === "select" && !DEMO) {
-                    doLocationFetch(true);
-                }
+            types: ["select"],
+            onPush(down) {
+                if (!down || DEMO) return;
+                doLocationFetch(true);
             }
         });
     }
