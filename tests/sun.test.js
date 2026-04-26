@@ -1,7 +1,7 @@
 // Unit tests for sun.js — runs in Node.js: node tests/sun.test.js
 // No external dependencies required.
 
-import { sunTimes, sunAzimuth, solarNoon, dayLength } from '../src/embeddedjs/sun.js';
+import { goldenHour, blueHour, sunPosition, nextEvents } from '../src/embeddedjs/sun.js';
 
 let passed = 0;
 let failed = 0;
@@ -11,8 +11,7 @@ function assertApprox(actual, expected, tolerance, label) {
     if (diff > tolerance) {
         console.error(`  FAIL: ${label}`);
         console.error(`        expected ${expected} ±${tolerance}, got ${actual.toFixed(2)} (diff ${diff.toFixed(2)})`);
-        failed++;
-        process.exitCode = 1;
+        failed++; process.exitCode = 1;
     } else {
         console.log(`  PASS: ${label}`);
         passed++;
@@ -22,179 +21,212 @@ function assertApprox(actual, expected, tolerance, label) {
 function check(condition, label) {
     if (!condition) {
         console.error(`  FAIL: ${label}`);
-        failed++;
-        process.exitCode = 1;
+        failed++; process.exitCode = 1;
     } else {
         console.log(`  PASS: ${label}`);
         passed++;
     }
 }
 
-const toUTCMin = d => d.getUTCHours() * 60 + d.getUTCMinutes();
+const utcMin = d => d.getUTCHours() * 60 + d.getUTCMinutes();
+const dur    = w => (w.end - w.start) / 60000;  // duration in minutes
 
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Sunrise / Sunset Times ──');
-
-// Copenhagen (55.68°N, 12.57°E) summer solstice 2026
-// Expected: sunrise ~02:26 UTC (04:26 CEST), sunset ~19:57 UTC (21:57 CEST)
+// ── goldenHour ────────────────────────────────────────────────────────────────
+console.log('\n── goldenHour: Copenhagen summer solstice 2026 ──');
 {
-    const t = sunTimes(55.68, 12.57, new Date(Date.UTC(2026, 5, 21)));
-    assertApprox(toUTCMin(t.sunrise), 2 * 60 + 26, 5, 'CPH summer solstice sunrise ~02:26 UTC');
-    assertApprox(toUTCMin(t.sunset),  19 * 60 + 57, 5, 'CPH summer solstice sunset ~19:57 UTC');
-    check(!t.polarDay && !t.polarNight, 'CPH summer — not polar');
+    const d  = new Date(Date.UTC(2026, 5, 21));
+    const gh = goldenHour(55.68, 12.57, d);
+
+    check(gh.morning !== null, 'CPH summer — morning golden hour exists');
+    check(gh.evening !== null, 'CPH summer — evening golden hour exists');
+
+    if (gh.morning && gh.evening) {
+        // Morning: starts at sunrise ~02:26 UTC, duration ~64 min (shallow sun angle at 55°N)
+        assertApprox(utcMin(gh.morning.start), 2 * 60 + 26, 8, 'CPH summer morning GH start ~02:26 UTC');
+        assertApprox(dur(gh.morning), 64, 10, 'CPH summer morning GH duration ~64 min');
+
+        // Evening: ends at sunset ~19:57 UTC, duration ~64 min
+        assertApprox(utcMin(gh.evening.end), 19 * 60 + 57, 8, 'CPH summer evening GH end ~19:57 UTC');
+        assertApprox(dur(gh.evening), 64, 10, 'CPH summer evening GH duration ~64 min');
+
+        // Morning azimuth: sun in NE sky at solstice (~40-55°)
+        check(gh.morning.azimuthStart >= 38 && gh.morning.azimuthStart <= 56,
+            `CPH summer morning GH azimuth start ${gh.morning.azimuthStart.toFixed(1)}° (expected 38-56°)`);
+
+        // Evening azimuth: sun in NW sky (~304-322°)
+        check(gh.evening.azimuthEnd >= 304 && gh.evening.azimuthEnd <= 322,
+            `CPH summer evening GH azimuth end ${gh.evening.azimuthEnd.toFixed(1)}° (expected 304-322°)`);
+    }
 }
 
-// Copenhagen winter solstice 2026
-// Expected: sunrise ~07:37 UTC (08:37 CET), sunset ~14:39 UTC (15:39 CET)
+console.log('\n── goldenHour: Copenhagen winter solstice 2026 ──');
 {
-    const t = sunTimes(55.68, 12.57, new Date(Date.UTC(2026, 11, 21)));
-    assertApprox(toUTCMin(t.sunrise), 7 * 60 + 37, 5, 'CPH winter solstice sunrise ~07:37 UTC');
-    assertApprox(toUTCMin(t.sunset),  14 * 60 + 39, 5, 'CPH winter solstice sunset ~14:39 UTC');
-    check(!t.polarDay && !t.polarNight, 'CPH winter — not polar');
+    const d  = new Date(Date.UTC(2026, 11, 21));
+    const gh = goldenHour(55.68, 12.57, d);
+
+    check(gh.morning !== null, 'CPH winter — morning golden hour exists');
+    check(gh.evening !== null, 'CPH winter — evening golden hour exists');
+
+    if (gh.morning && gh.evening) {
+        // Winter GH is ~78 min — sun rises very shallowly at 55°N in December
+        assertApprox(dur(gh.morning), 78, 12, 'CPH winter morning GH duration ~78 min');
+        assertApprox(dur(gh.evening), 78, 12, 'CPH winter evening GH duration ~78 min');
+
+        // SE morning, SW evening
+        check(gh.morning.azimuthStart >= 115 && gh.morning.azimuthStart <= 140,
+            `CPH winter morning GH azimuth start ${gh.morning.azimuthStart.toFixed(1)}° (expected SE 115-140°)`);
+        check(gh.evening.azimuthEnd >= 220 && gh.evening.azimuthEnd <= 245,
+            `CPH winter evening GH azimuth end ${gh.evening.azimuthEnd.toFixed(1)}° (expected SW 220-245°)`);
+    }
 }
 
-// New York (40.71°N, −74.01°W) equinox 2026
-// Solar noon at −74° lon ≈ 17:03 UTC; day ≈ 12h → rise ~10:59, set ~23:07 UTC
+console.log('\n── goldenHour: Equator equinox ──');
 {
-    const t = sunTimes(40.71, -74.01, new Date(Date.UTC(2026, 2, 20)));
-    assertApprox(toUTCMin(t.sunrise), 10 * 60 + 59, 8, 'NYC equinox sunrise ~10:59 UTC');
-    assertApprox(toUTCMin(t.sunset),  23 * 60 +  7, 8, 'NYC equinox sunset ~23:07 UTC');
+    const d  = new Date(Date.UTC(2026, 2, 20));
+    const gh = goldenHour(0, 0, d);
+
+    check(gh.morning !== null, 'Equator equinox — morning GH exists');
+    check(gh.evening !== null, 'Equator equinox — evening GH exists');
+
+    if (gh.morning && gh.evening) {
+        // Sun rises nearly due east, azimuth ~85-95°
+        assertApprox(gh.morning.azimuthStart, 90, 6, 'Equator morning GH azimuth start ~90° (E)');
+        assertApprox(gh.evening.azimuthEnd,   270, 6, 'Equator evening GH azimuth end ~270° (W)');
+    }
 }
 
-// Sydney (−33.87°S, 151.21°E) — southern hemisphere verification
-// At equinox day length ≈ 12h (check length, not times, to avoid UTC date-wrap complexity)
+// ── blueHour ──────────────────────────────────────────────────────────────────
+console.log('\n── blueHour: Copenhagen summer solstice 2026 ──');
 {
-    const dl = dayLength(-33.87, 151.21, new Date(Date.UTC(2026, 2, 20)));
-    assertApprox(dl, 720, 15, 'Sydney equinox day length ~720 min');
+    const d  = new Date(Date.UTC(2026, 5, 21));
+    const bh = blueHour(55.68, 12.57, d);
+
+    check(bh.morning !== null, 'CPH summer — morning blue hour exists');
+    check(bh.evening !== null, 'CPH summer — evening blue hour exists');
+
+    if (bh.morning && bh.evening) {
+        // Evening BH starts after golden hour ends
+        const gh = goldenHour(55.68, 12.57, d);
+        if (gh.evening) {
+            check(bh.evening.start >= gh.evening.end,
+                'CPH summer evening BH starts after GH ends');
+        }
+        // BH duration shorter than GH at high latitude in summer
+        check(dur(bh.evening) > 0 && dur(bh.evening) < dur(goldenHour(55.68, 12.57, d).evening ?? { start: 0, end: 99e9 }),
+            `CPH summer evening BH duration ${dur(bh.evening).toFixed(0)} min (shorter than GH)`);
+    }
 }
 
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Polar Edge Cases ──');
-
-// Tromsø (69.65°N, 18.96°E) — polar day in June
+console.log('\n── blueHour: Equator equinox ──');
 {
-    const t = sunTimes(69.65, 18.96, new Date(Date.UTC(2026, 5, 21)));
-    check(t.polarDay === true,  'Tromsø June — polarDay');
-    check(t.sunrise === null,   'Tromsø June — sunrise is null');
-    assertApprox(dayLength(69.65, 18.96, new Date(Date.UTC(2026, 5, 21))), 24 * 60, 0, 'Tromsø June — 24×60 min day');
+    const d  = new Date(Date.UTC(2026, 2, 20));
+    const bh = blueHour(0, 0, d);
+
+    check(bh.morning !== null, 'Equator — morning BH exists');
+    check(bh.evening !== null, 'Equator — evening BH exists');
+
+    if (bh.morning && bh.evening) {
+        // Near equator sun moves fast so BH is very short (~6-12 min)
+        check(dur(bh.evening) >= 5 && dur(bh.evening) <= 14,
+            `Equator evening BH duration ${dur(bh.evening).toFixed(0)} min (expected 5-14)`);
+    }
 }
 
-// Tromsø — polar night in December
+// ── sunPosition ───────────────────────────────────────────────────────────────
+console.log('\n── sunPosition ──');
 {
-    const t = sunTimes(69.65, 18.96, new Date(Date.UTC(2026, 11, 21)));
-    check(t.polarNight === true, 'Tromsø December — polarNight');
-    check(t.sunrise === null,    'Tromsø December — sunrise is null');
-    assertApprox(dayLength(69.65, 18.96, new Date(Date.UTC(2026, 11, 21))), 0, 0, 'Tromsø December — 0 min day');
+    // Solar noon in Copenhagen (summer solstice): azimuth ~180° (S), elevation ~57.7°
+    const noonUTC = new Date(Date.UTC(2026, 5, 21, 11, 11, 0));
+    const pos = sunPosition(55.68, 12.57, noonUTC);
+    assertApprox(pos.azimuth,   180,  6, 'CPH solar noon azimuth ~180° (S)');
+    assertApprox(pos.elevation,  57.7, 2, 'CPH solar noon elevation ~57.7°');
 }
 
-// 65°N at midsummer — just south of effective polar circle (with refraction 65°N is finite)
 {
-    const dl = dayLength(65.0, 18.96, new Date(Date.UTC(2026, 5, 21)));
-    check(dl > 22 * 60 && dl < 24 * 60, `65°N midsummer day length ${dl.toFixed(0)} min (expected 22–24 h)`);
-}
-
-// Equator — equinox day length ≈ 12h
-{
-    const dl = dayLength(0, 0, new Date(Date.UTC(2026, 2, 20)));
-    assertApprox(dl, 720, 15, 'Equator equinox day length ~720 min');
-}
-
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Solar Azimuth — Rise / Set Directions ──');
-
-// At equinox sunrise ≈ 90° (East) and sunset ≈ 270° (West) for any latitude
-{
-    const d = new Date(Date.UTC(2026, 2, 20));
-    const az = sunAzimuth(55.68, 12.57, d);
-    assertApprox(az.sunrise, 90, 3, 'CPH equinox sunrise azimuth ~90°');
-    assertApprox(az.sunset,  270, 3, 'CPH equinox sunset azimuth ~270°');
-
-    const azS = sunAzimuth(-33.87, 151.21, d);
-    assertApprox(azS.sunrise, 90, 3, 'Sydney equinox sunrise azimuth ~90°');
-    assertApprox(azS.sunset,  270, 3, 'Sydney equinox sunset azimuth ~270°');
-}
-
-// Summer solstice 55°N: sunrise well north of east (40–51°), sunset symmetric (309–320°)
-{
-    const az = sunAzimuth(55.68, 12.57, new Date(Date.UTC(2026, 5, 21)));
-    check(az.sunrise >= 39 && az.sunrise <= 52,
-          `CPH summer solstice sunrise az ${az.sunrise.toFixed(1)}° (expected 40–51°)`);
-    check(az.sunset >= 308 && az.sunset <= 321,
-          `CPH summer solstice sunset az ${az.sunset.toFixed(1)}° (expected 309–320°)`);
-}
-
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Solar Azimuth — Current Position ──');
-
-// Solar noon in N hemisphere: azimuth ≈ 180° (South), elevation = 90 − lat + decl
-{
-    const d    = new Date(Date.UTC(2026, 5, 21));
-    const noon = solarNoon(55.68, 12.57, d);
-    const az   = sunAzimuth(55.68, 12.57, noon);
-    assertApprox(az.current,   180,  5, 'CPH solar noon azimuth ~180° (South)');
-    // elevation at summer solstice solar noon: 90 − 55.68 + 23.44 ≈ 57.76°
-    assertApprox(az.elevation, 57.7, 2, 'CPH summer solstice noon elevation ~57.7°');
-}
-
-// Solar noon in S hemisphere: azimuth ≈ 0°/360° (North)
-{
-    const d    = new Date(Date.UTC(2026, 2, 20));
-    const noon = solarNoon(-33.87, 151.21, d);
-    const az   = sunAzimuth(-33.87, 151.21, noon);
-    const distFromNorth = Math.min(az.current, 360 - az.current);
-    assertApprox(distFromNorth, 0, 5, 'Sydney solar noon azimuth ~0° (North)');
-}
-
-// Midnight in winter: sun clearly below horizon
-{
+    // Midnight in winter: elevation well below horizon
     const midnight = new Date(Date.UTC(2026, 11, 21, 0, 0, 0));
-    const az = sunAzimuth(55.68, 0, midnight);
-    check(az.elevation < -30, `CPH winter midnight elevation ${az.elevation.toFixed(1)}° (expected < −30°)`);
+    const pos = sunPosition(55.68, 12.57, midnight);
+    check(pos.elevation < -30, `CPH winter midnight elevation ${pos.elevation.toFixed(1)}° (expected < -30°)`);
 }
-
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Day Length ──');
 
 {
-    const dl1 = dayLength(55.68, 12.57, new Date(Date.UTC(2026, 5, 21)));
-    assertApprox(dl1, 1051, 15, 'CPH summer solstice day length ~1051 min (17.5 h)');
-
-    const dl2 = dayLength(55.68, 12.57, new Date(Date.UTC(2026, 11, 21)));
-    assertApprox(dl2, 420, 15, 'CPH winter solstice day length ~420 min (7 h)');
+    // Sydney at solar noon (equinox): azimuth ~0° (N, southern hemisphere)
+    const noonUTC = new Date(Date.UTC(2026, 2, 20, 2, 20, 0));  // ~solar noon Sydney UTC
+    const pos = sunPosition(-33.87, 151.21, noonUTC);
+    const distFromNorth = Math.min(pos.azimuth, 360 - pos.azimuth);
+    assertApprox(distFromNorth, 0, 8, 'Sydney equinox noon azimuth ~0°/360° (N)');
 }
 
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Solar Noon ──');
+// ── nextEvents ────────────────────────────────────────────────────────────────
+console.log('\n── nextEvents ──');
+{
+    // Called during evening golden hour: first event should be active (start in past)
+    const d  = new Date(Date.UTC(2026, 5, 21));
+    const gh = goldenHour(55.68, 12.57, d);
+    if (gh.evening) {
+        const midGH = new Date(gh.evening.start.getTime() + 10 * 60000);
+        const evs = nextEvents(55.68, 12.57, midGH);
+        check(evs.length > 0, 'nextEvents during GH returns events');
+        check(evs[0].type === "golden" && evs[0].start <= midGH,
+            'First event is active golden hour (start in past)');
+    }
+}
 
 {
-    const noon = solarNoon(55.68, 12.57, new Date(Date.UTC(2026, 5, 21)));
-    assertApprox(toUTCMin(noon), 11 * 60 + 11, 5, 'CPH summer solstice solar noon ~11:11 UTC');
+    // Called late at night: wraps to tomorrow's morning events
+    const lateNight = new Date(Date.UTC(2026, 5, 21, 22, 0, 0));
+    const evs = nextEvents(55.68, 12.57, lateNight);
+    check(evs.length > 0, 'nextEvents late at night returns events');
+    check(evs[0].start > lateNight, 'First event is in the future (tomorrow)');
 }
 
-// ─────────────────────────────────────────────────────────────
-console.log('\n── Edge Cases ──');
-
-// Date line area (longitude ±180)
 {
-    const t = sunTimes(0, 179.9, new Date(Date.UTC(2026, 2, 20)));
-    check(t.sunrise instanceof Date && t.sunset instanceof Date, 'Lon +179.9 — valid dates');
-}
-{
-    const t = sunTimes(0, -179.9, new Date(Date.UTC(2026, 2, 20)));
-    check(t.sunrise instanceof Date && t.sunset instanceof Date, 'Lon −179.9 — valid dates');
-}
-
-// Equator (lat = 0)
-{
-    const t = sunTimes(0, 0, new Date(Date.UTC(2026, 6, 15)));
-    check(t.sunrise instanceof Date && t.sunset instanceof Date, 'Equator lat=0 — valid dates');
+    // Should always return golden and blue events
+    const now = new Date(Date.UTC(2026, 2, 20, 14, 0, 0));  // afternoon, equinox
+    const evs = nextEvents(55.68, 12.57, now);
+    const hasGolden = evs.some(e => e.type === "golden");
+    const hasBlue   = evs.some(e => e.type === "blue");
+    check(hasGolden, 'nextEvents includes a golden hour event');
+    check(hasBlue,   'nextEvents includes a blue hour event');
+    check(evs.length <= 4, 'nextEvents returns at most 4 events');
 }
 
-// ─────────────────────────────────────────────────────────────
-console.log(`\n${'─'.repeat(42)}`);
+// ── Polar edge cases ──────────────────────────────────────────────────────────
+console.log('\n── Polar edge cases ──');
+{
+    // Tromsø June: polar day — golden and blue hour return null
+    const d  = new Date(Date.UTC(2026, 5, 21));
+    const gh = goldenHour(69.65, 18.96, d);
+    const bh = blueHour(69.65, 18.96, d);
+    check(gh.morning === null && gh.evening === null, 'Tromsø June — no golden hour (polar day)');
+    check(bh.morning === null && bh.evening === null, 'Tromsø June — no blue hour (polar day)');
+
+    const evs = nextEvents(69.65, 18.96, new Date(Date.UTC(2026, 5, 21, 12, 0, 0)));
+    check(evs.every(e => e.start > new Date(Date.UTC(2026, 5, 21))), 'Tromsø June — no events crash');
+}
+
+{
+    // Tromsø December: polar night — no crash, graceful nulls
+    const d  = new Date(Date.UTC(2026, 11, 21));
+    const gh = goldenHour(69.65, 18.96, d);
+    check(gh.morning === null && gh.evening === null, 'Tromsø December — no golden hour (polar night)');
+    const bh = blueHour(69.65, 18.96, d);
+    check(bh !== null, 'Tromsø December — blueHour does not throw');
+}
+
+{
+    // Arctic winter day: sun barely rises, may never reach 6°
+    // Should return morning-only GH window gracefully
+    const d  = new Date(Date.UTC(2026, 11, 21));
+    const gh = goldenHour(68.0, 18.96, d);
+    check(gh !== null, 'Arctic winter — goldenHour does not throw');
+    if (gh.morning) {
+        check(gh.morning.end > gh.morning.start, 'Arctic winter — morning GH window is valid');
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+console.log(`\n${'─'.repeat(48)}`);
 console.log(`Results: ${passed} passed, ${failed} failed`);
-if (failed > 0) {
-    console.error('\nSome tests FAILED. Check output above.');
-} else {
-    console.log('\nAll tests passed.');
-}
+if (failed > 0) console.error('\nSome tests FAILED.');
+else            console.log('\nAll tests passed.');
