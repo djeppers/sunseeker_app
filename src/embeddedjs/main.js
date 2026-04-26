@@ -57,6 +57,10 @@ let port = null;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const RAD_C = Math.PI / 180;
 
+// Reuse one object to avoid allocating a new {x,y} on every ringPos call.
+// Callers must read x/y before the next ringPos call.
+const _pos = { x: 0, y: 0 };
+
 function ringPos(bearing, r) {
     let delta = ((bearing - state.heading) % 360 + 360) % 360;
     if (delta > 180) delta -= 360;  // [-180, 180]
@@ -66,10 +70,12 @@ function ringPos(bearing, r) {
         delta = (delta - offset) * ZOOM_FACTOR;
         if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
-        if (Math.abs(delta) > 180) return { x: -9999, y: -9999 };  // off-screen
+        if (Math.abs(delta) > 180) { _pos.x = -9999; _pos.y = -9999; return _pos; }
     }
     const a = ((delta % 360) + 360) % 360 * RAD_C;
-    return { x: CX + Math.round(r * Math.sin(a)), y: CY - Math.round(r * Math.cos(a)) };
+    _pos.x = CX + Math.round(r * Math.sin(a));
+    _pos.y = CY - Math.round(r * Math.cos(a));
+    return _pos;
 }
 
 // Bearing of the next event's arc midpoint — used to set zoom center.
@@ -102,7 +108,8 @@ function drawArc(p, az1, az2, r, color) {
     if (diff > 180) { diff = 360 - diff; start = az2; }
     for (let i = 0; i <= diff; i += 2) {
         const { x, y } = ringPos((start + i + 360) % 360, r);
-        p.fillColor(color, x - 3, y - 3, 7, 7);  // slightly larger dot to compensate
+        if (x < -100) continue;  // off-screen (zoom mode clips to ±45° FOV)
+        p.fillColor(color, x - 3, y - 3, 7, 7);
     }
 }
 
