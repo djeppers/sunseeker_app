@@ -48,8 +48,15 @@ const state = {
     gh:          null,   // goldenHour() result
     bh:          null,   // blueHour() result
     events:      [],     // nextEvents() result
-    zoom:        false,
-    zoomCenter:  0,      // bearing to lock at 12 o'clock in zoom mode
+    zoom:         false,
+    zoomCenter:   0,
+    // Pre-computed in calcState so draw functions allocate nothing:
+    nextGolden:   null,
+    nextBlue:     null,
+    goldenActive: false,
+    blueActive:   false,
+    fmtGolden:    "--",
+    fmtBlue:      "--",
 };
 
 let port = null;
@@ -116,10 +123,18 @@ function drawArc(p, az1, az2, r, color) {
 // ── State calculation ─────────────────────────────────────────────────────────
 function calcState() {
     if (state.lat === null) return;
-    const now  = DEMO ? DEMO_DATE : new Date();
+    const now   = DEMO ? DEMO_DATE : new Date();
+    const nowMs = now instanceof Date ? now.getTime() : now;
     state.gh     = goldenHour(state.lat, state.lon, now);
     state.bh     = blueHour(state.lat, state.lon, now);
     state.events = nextEvents(state.lat, state.lon, now);
+    // Pre-compute everything the draw functions need — zero allocations during draw.
+    state.nextGolden   = state.events.find(e => e.type === "golden") || null;
+    state.nextBlue     = state.events.find(e => e.type === "blue")   || null;
+    state.goldenActive = state.nextGolden !== null && state.nextGolden.startMs <= nowMs;
+    state.blueActive   = state.nextBlue   !== null && state.nextBlue.startMs   <= nowMs;
+    state.fmtGolden    = fmtCountdown(state.nextGolden, nowMs);
+    state.fmtBlue      = fmtCountdown(state.nextBlue,   nowMs);
 }
 
 function saveLocation(lat, lon) {
@@ -225,24 +240,14 @@ function drawCompassView(p) {
     else          drawTimerPanel(p);
 }
 
-function drawTimerRows(p, x, y1, y2, now) {
-    const events     = state.events;
-    const nextGolden = events.find(e => e.type === "golden");
-    const nextBlue   = events.find(e => e.type === "blue");
-
-    const nowMs      = now instanceof Date ? now.getTime() : now;
-    const goldenActive = nextGolden && nextGolden.startMs <= nowMs;
-    const blueActive   = nextBlue   && nextBlue.startMs   <= nowMs;
-
-    // Golden row
+function drawTimerRows(p, x, y1, y2) {
     p.fillColor(C_GOLDEN, x, y1 + 4, 6, 6);
     p.drawString("Golden", F_SM, C_TEXT, x + 10, y1);
-    p.drawString(fmtCountdown(nextGolden, nowMs), F_SM, goldenActive ? C_GOLDEN : C_TEXT, x + 68, y1);
+    p.drawString(state.fmtGolden, F_SM, state.goldenActive ? C_GOLDEN : C_TEXT, x + 68, y1);
 
-    // Blue row
     p.fillColor(C_BLUE, x, y2 + 4, 6, 6);
     p.drawString("Blue", F_SM, C_TEXT, x + 10, y2);
-    p.drawString(fmtCountdown(nextBlue, nowMs), F_SM, blueActive ? C_BLUE : C_TEXT, x + 68, y2);
+    p.drawString(state.fmtBlue, F_SM, state.blueActive ? C_BLUE : C_TEXT, x + 68, y2);
 }
 
 function drawZoomPanel(p) {
@@ -252,8 +257,8 @@ function drawZoomPanel(p) {
     const absDeg = Math.abs(Math.round(deg));
     let str;
     if (absDeg <= 2)       str = "Aligned!";
-    else if (deg > 0)      str = `${absDeg}° left`;
-    else                   str = `${absDeg}° right`;
+    else if (deg > 0)      str = `${absDeg}deg L`;
+    else                   str = `${absDeg}deg R`;
     p.drawString("ZOOM", F_SM, C_GOLDEN, 6, PANEL_Y + 6);
     p.drawString(str, F_MD, absDeg <= 2 ? C_GOLDEN : C_TEXT, 52, PANEL_Y + 4);
 }
@@ -265,8 +270,7 @@ function drawTimerPanel(p) {
         return;
     }
     if (state.zoom) { drawZoomPanel(p); return; }
-    const now = DEMO ? DEMO_DATE : new Date();
-    drawTimerRows(p, 6, PANEL_Y + 6, PANEL_Y + 26, now);
+    drawTimerRows(p, 6, PANEL_Y + 6, PANEL_Y + 26);
 }
 
 function drawTimerCenter(p) {
@@ -275,16 +279,15 @@ function drawTimerCenter(p) {
         return;
     }
     if (state.zoom) {
-        const diff = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
-        const deg  = diff > 180 ? diff - 360 : diff;
+        const diff   = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
+        const deg    = diff > 180 ? diff - 360 : diff;
         const absDeg = Math.abs(Math.round(deg));
-        const str = absDeg <= 2 ? "Aligned!" : (deg > 0 ? `${absDeg}° left` : `${absDeg}° right`);
+        const str    = absDeg <= 2 ? "Aligned!" : (deg > 0 ? `${absDeg}deg L` : `${absDeg}deg R`);
         p.drawString("ZOOM", F_SM, C_GOLDEN, CX - 18, CY - 10);
         p.drawString(str, F_SM, absDeg <= 2 ? C_GOLDEN : C_TEXT, CX - 26, CY + 4);
         return;
     }
-    const now = DEMO ? DEMO_DATE : new Date();
-    drawTimerRows(p, CX - 52, CY - 12, CY + 6, now);
+    drawTimerRows(p, CX - 52, CY - 12, CY + 6);
 }
 
 // ── Port behavior ─────────────────────────────────────────────────────────────
