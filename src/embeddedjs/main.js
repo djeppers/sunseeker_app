@@ -71,11 +71,8 @@ function ringPos(bearing, r) {
     let delta = ((bearing - state.heading) % 360 + 360) % 360;
     if (delta > 180) delta -= 360;
     if (state.zoom) {
-        const zc = ((state.zoomCenter - state.heading) % 360 + 360) % 360;
-        const offset = zc > 180 ? zc - 360 : zc;
-        delta = (delta - offset) * ZOOM_FACTOR;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
+        // Heading stays at 12 o'clock — just magnify so arcs approach top as you rotate toward them.
+        delta *= ZOOM_FACTOR;
         if (Math.abs(delta) > 180) { _pos.x = -9999; _pos.y = -9999; return _pos; }
     }
     const a = ((delta % 360) + 360) % 360 * RAD_C;
@@ -133,7 +130,7 @@ function drawGradientArc(p, az6, azM4, azM6, r) {
         m4Offset = cw ? s : 360 - s;
     }
 
-    const DITHER = 3;  // degrees of dither zone on each side of the -4° boundary
+    const DITHER = 1;  // degrees of dither zone on each side of the -4° boundary
 
     for (let i = 0; i <= total; i += 2) {
         const az = cw ? (arcStart + i + 360) % 360 : (arcStart - i + 360) % 360;
@@ -226,7 +223,7 @@ function drawCompassView(p) {
     }
 
     if (state.zoom) {
-        // Fine tick marks every 5° (only visible ones drawn)
+        // Fine tick marks every 5° (only those in ±45° FOV are on-screen)
         for (let b = 0; b < 360; b += 5) {
             const { x, y } = ringPos(b, RING_R - ringW - 1);
             if (x < -100 || x > W) continue;
@@ -234,17 +231,12 @@ function drawCompassView(p) {
             const sz = isMaj ? 4 : 2;
             p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
         }
-        // Heading indicator — white diamond showing where you're facing
-        const { x: hx, y: hy } = ringPos(state.heading, RING_R - 3);
-        if (hx > -100) {
-            p.fillColor(C_TEXT, hx - 1, hy - 4, 3, 4);
-            p.fillColor(C_TEXT, hx - 2, hy,     5, 1);
-            p.fillColor(C_TEXT, hx - 1, hy + 1, 3, 3);
-        }
-        // Amber crosshair at 12 o'clock = zoom center direction
+        // Normal pointer at 12 o'clock — heading is always at top in zoom mode
         const tip = CY - RING_R - 2;
-        p.fillColor(C_GOLDEN, CX - 5, tip - 1, 11, 3);
-        p.fillColor(C_GOLDEN, CX - 1, tip - 5,  3, 11);
+        p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
+        p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
+        p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
+        p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
     } else {
         // Tick marks every 30°
         for (let b = 0; b < 360; b += 30) {
@@ -281,11 +273,12 @@ function drawTimerRows(p, x, y1, y2) {
 }
 
 function zoomAlignStr() {
-    const diff   = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
+    // Positive diff = arc is to your right, negative = to your left
+    const diff   = ((state.zoomCenter - state.heading) % 360 + 360) % 360;
     const deg    = diff > 180 ? diff - 360 : diff;
     const absDeg = Math.abs(Math.round(deg));
     if (absDeg <= 2) return "Aligned!";
-    return deg > 0 ? `${absDeg}deg L` : `${absDeg}deg R`;
+    return deg > 0 ? `${absDeg}deg R` : `${absDeg}deg L`;
 }
 
 function drawTimerPanel(p) {
