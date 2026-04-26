@@ -38,14 +38,18 @@ const DEMO_HEADING = 315;
 const DEMO_DATE    = new Date(2026, 2, 13, 15, 0, 0);
 
 // ── State ─────────────────────────────────────────────────────────────────────
+const ZOOM_FACTOR = 4;  // 4× zoom = ±45° FOV
+
 const state = {
-    heading: 0,
-    lat:     null,
-    lon:     null,
-    located: false,
-    gh:      null,   // goldenHour() result
-    bh:      null,   // blueHour() result
-    events:  [],     // nextEvents() result
+    heading:     0,
+    lat:         null,
+    lon:         null,
+    located:     false,
+    gh:          null,   // goldenHour() result
+    bh:          null,   // blueHour() result
+    events:      [],     // nextEvents() result
+    zoom:        false,
+    zoomCenter:  0,      // bearing to lock at 12 o'clock in zoom mode
 };
 
 let port = null;
@@ -54,8 +58,27 @@ let port = null;
 const RAD_C = Math.PI / 180;
 
 function ringPos(bearing, r) {
-    const a = ((bearing - state.heading) % 360 + 360) % 360 * RAD_C;
+    let delta = ((bearing - state.heading) % 360 + 360) % 360;
+    if (delta > 180) delta -= 360;  // [-180, 180]
+    if (state.zoom) {
+        const zc = ((state.zoomCenter - state.heading) % 360 + 360) % 360;
+        const offset = zc > 180 ? zc - 360 : zc;
+        delta = (delta - offset) * ZOOM_FACTOR;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        if (Math.abs(delta) > 180) return { x: -9999, y: -9999 };  // off-screen
+    }
+    const a = ((delta % 360) + 360) % 360 * RAD_C;
     return { x: CX + Math.round(r * Math.sin(a)), y: CY - Math.round(r * Math.cos(a)) };
+}
+
+// Bearing of the next event's arc midpoint — used to set zoom center.
+function computeZoomCenter() {
+    const ev = state.events[0];
+    if (ev) return (ev.azimuthStart + ev.azimuthEnd) / 2;
+    if (state.gh?.evening) return (state.gh.evening.azimuthStart + state.gh.evening.azimuthEnd) / 2;
+    if (state.gh?.morning) return (state.gh.morning.azimuthStart + state.gh.morning.azimuthEnd) / 2;
+    return 270;
 }
 
 function fmtTime(d) {
@@ -145,26 +168,50 @@ function drawCompassView(p) {
         if (state.bh.evening) drawArc(p, state.bh.evening.azimuthStart, state.bh.evening.azimuthEnd, arcR, C_BLUE);
     }
 
-    // Tick marks every 30° (major at cardinals)
-    for (let b = 0; b < 360; b += 30) {
-        const isMaj = b % 90 === 0;
-        const { x, y } = ringPos(b, RING_R - ringW - 1);
-        const sz = isMaj ? 4 : 2;
-        p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
-    }
+    if (state.zoom) {
+        // Fine tick marks every 5° (only those within ±45° FOV will be on-screen)
+        for (let b = 0; b < 360; b += 5) {
+            const isMaj = b % 45 === 0;
+            const { x, y } = ringPos(b, RING_R - ringW - 1);
+            if (x < 0 || x > W) continue;
+            const sz = isMaj ? 4 : 2;
+            p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
+        }
 
-    // Cardinal labels
-    for (const [b, ltr, col] of [[0, "N", C_NORTH], [90, "E", C_CARD], [180, "S", C_CARD], [270, "W", C_CARD]]) {
-        const { x, y } = ringPos(b, RING_R - 22);
-        p.drawString(ltr, F_MD, col, x - 5, y - 8);
-    }
+        // Heading indicator — white diamond on the ring showing where you face
+        const { x: hx, y: hy } = ringPos(state.heading, RING_R - 3);
+        if (hx > -100) {
+            p.fillColor(C_TEXT, hx - 1, hy - 4, 3, 4);  // diamond top
+            p.fillColor(C_TEXT, hx - 2, hy,     5, 1);  // diamond mid
+            p.fillColor(C_TEXT, hx - 1, hy + 1, 3, 3);  // diamond bottom
+        }
 
-    // Fixed downward pointer at 12 o'clock
-    const tip = CY - RING_R - 2;
-    p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
-    p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
-    p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
-    p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
+        // Target crosshair at 12 o'clock (= zoom center direction)
+        const tip = CY - RING_R - 2;
+        p.fillColor(C_GOLDEN, CX - 5, tip - 1, 11, 3);
+        p.fillColor(C_GOLDEN, CX - 1, tip - 5,  3, 11);
+    } else {
+        // Normal tick marks every 30°
+        for (let b = 0; b < 360; b += 30) {
+            const isMaj = b % 90 === 0;
+            const { x, y } = ringPos(b, RING_R - ringW - 1);
+            const sz = isMaj ? 4 : 2;
+            p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
+        }
+
+        // Cardinal labels
+        for (const [b, ltr, col] of [[0, "N", C_NORTH], [90, "E", C_CARD], [180, "S", C_CARD], [270, "W", C_CARD]]) {
+            const { x, y } = ringPos(b, RING_R - 22);
+            p.drawString(ltr, F_MD, col, x - 5, y - 8);
+        }
+
+        // Fixed downward pointer at 12 o'clock
+        const tip = CY - RING_R - 2;
+        p.fillColor(C_TEXT, CX - 4, tip - 8, 8, 3);
+        p.fillColor(C_TEXT, CX - 3, tip - 5, 6, 3);
+        p.fillColor(C_TEXT, CX - 2, tip - 2, 4, 3);
+        p.fillColor(C_TEXT, CX - 1, tip,     2, 3);
+    }
 
     // Timer section
     if (IS_ROUND) drawTimerCenter(p);
@@ -190,12 +237,26 @@ function drawTimerRows(p, x, y1, y2, now) {
     p.drawString(fmtCountdown(nextBlue, now), F_SM, blueActive ? C_BLUE : C_TEXT, x + 68, y2);
 }
 
+function drawZoomPanel(p) {
+    p.fillColor(C_PANEL, 0, PANEL_Y, W, H - PANEL_Y);
+    const diff = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
+    const deg  = diff > 180 ? diff - 360 : diff;  // [-180, 180]
+    const absDeg = Math.abs(Math.round(deg));
+    let str;
+    if (absDeg <= 2)       str = "Aligned!";
+    else if (deg > 0)      str = `${absDeg}° left`;
+    else                   str = `${absDeg}° right`;
+    p.drawString("ZOOM", F_SM, C_GOLDEN, 6, PANEL_Y + 6);
+    p.drawString(str, F_MD, absDeg <= 2 ? C_GOLDEN : C_TEXT, 52, PANEL_Y + 4);
+}
+
 function drawTimerPanel(p) {
     p.fillColor(C_PANEL, 0, PANEL_Y, W, H - PANEL_Y);
     if (!state.located) {
         p.drawString("Locating...", F_SM, C_DIM, 6, PANEL_Y + 8);
         return;
     }
+    if (state.zoom) { drawZoomPanel(p); return; }
     const now = DEMO ? DEMO_DATE : new Date();
     drawTimerRows(p, 6, PANEL_Y + 6, PANEL_Y + 26, now);
 }
@@ -203,6 +264,15 @@ function drawTimerPanel(p) {
 function drawTimerCenter(p) {
     if (!state.located) {
         p.drawString("Locating...", F_SM, C_DIM, CX - 36, CY - 8);
+        return;
+    }
+    if (state.zoom) {
+        const diff = ((state.heading - state.zoomCenter) % 360 + 360) % 360;
+        const deg  = diff > 180 ? diff - 360 : diff;
+        const absDeg = Math.abs(Math.round(deg));
+        const str = absDeg <= 2 ? "Aligned!" : (deg > 0 ? `${absDeg}° left` : `${absDeg}° right`);
+        p.drawString("ZOOM", F_SM, C_GOLDEN, CX - 18, CY - 10);
+        p.drawString(str, F_SM, absDeg <= 2 ? C_GOLDEN : C_TEXT, CX - 26, CY + 4);
         return;
     }
     const now = DEMO ? DEMO_DATE : new Date();
@@ -259,10 +329,16 @@ class AppBehavior {
         }
 
         new Button({
-            types: ["select"],
-            onPush(down) {
-                if (!down || DEMO) return;
-                doLocationFetch(true);
+            types: ["up", "select"],
+            onPush(down, type) {
+                if (!down) return;
+                if (type === "up") {
+                    state.zoom = !state.zoom;
+                    if (state.zoom) state.zoomCenter = computeZoomCenter();
+                    redraw();
+                } else if (type === "select" && !DEMO) {
+                    doLocationFetch(true);
+                }
             }
         });
     }
