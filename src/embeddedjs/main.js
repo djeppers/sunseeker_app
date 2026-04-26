@@ -137,9 +137,17 @@ function drawGradientArc(p, az6, azM4, azM6, r) {
     }
 
     const DITHER = 2;  // degrees of dither on each side of the -4° boundary
-    const DOT    = 3;  // dot radius for arc body
+    const DOT    = 3;  // half-width of arc dots
 
-    for (let i = 0; i <= total; i++) {
+    // Rounded caps: draw larger squares at endpoints (no fillCircle = no float allocs)
+    const startColor = az6  !== null ? C_GOLDEN : C_BLUE;
+    const endColor   = azM6 !== null ? C_BLUE   : C_GOLDEN;
+    const { x: sx, y: sy } = ringPos(arcStart, r);
+    if (sx > -100) p.fillColor(startColor, sx - DOT - 1, sy - DOT - 1, (DOT + 1) * 2 + 1, (DOT + 1) * 2 + 1);
+    const { x: ex, y: ey } = ringPos(arcEnd, r);
+    if (ex > -100) p.fillColor(endColor,   ex - DOT - 1, ey - DOT - 1, (DOT + 1) * 2 + 1, (DOT + 1) * 2 + 1);
+
+    for (let i = 0; i <= total; i += 2) {
         const az = cw ? (arcStart + i + 360) % 360 : (arcStart - i + 360) % 360;
         const { x, y } = ringPos(az, r);
         if (x < -100) continue;
@@ -152,18 +160,10 @@ function drawGradientArc(p, az6, azM4, azM6, r) {
         } else if (i > m4Offset + DITHER) {
             color = C_BLUE;
         } else {
-            color = i % 2 === 0 ? C_GOLDEN : C_BLUE;
+            color = (i >> 1) % 2 === 0 ? C_GOLDEN : C_BLUE;
         }
         p.fillColor(color, x - DOT, y - DOT, DOT * 2 + 1, DOT * 2 + 1);
     }
-
-    // Rounded caps
-    const startColor = az6 !== null ? C_GOLDEN : C_BLUE;
-    const { x: sx, y: sy } = ringPos(arcStart, r);
-    if (sx > -100) fillCircle(p, sx, sy, DOT + 1, startColor);
-    const endColor = azM6 !== null ? C_BLUE : C_GOLDEN;
-    const { x: ex, y: ey } = ringPos(arcEnd, r);
-    if (ex > -100) fillCircle(p, ex, ey, DOT + 1, endColor);
 }
 
 // ── State calculation ─────────────────────────────────────────────────────────
