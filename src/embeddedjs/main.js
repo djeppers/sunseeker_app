@@ -58,6 +58,8 @@ const state = {
     fmtBlue:      "--",
     zoom:         false,
     zoomCenter:   0,
+    view:         "clock",   // "clock" | "compass"
+    clockArcs:    null,      // pre-computed clock angles — zero alloc during draw
 };
 
 let port = null;
@@ -103,6 +105,73 @@ function fillCircle(p, cx, cy, r, color) {
     for (let dy = -r; dy <= r; dy++) {
         const dx = Math.round(Math.sqrt(r * r - dy * dy));
         p.fillColor(color, cx - dx, cy + dy, dx * 2 + 1, 1);
+    }
+}
+
+// Bresenham line — integer arithmetic only, no float allocations.
+function drawLine(p, x0, y0, x1, y1, color) {
+    let dx = x1 - x0; if (dx < 0) dx = -dx;
+    let dy = y1 - y0; if (dy < 0) dy = -dy;
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy, x = x0, y = y0;
+    while (true) {
+        p.fillColor(color, x - 1, y - 1, 3, 3);
+        if (x === x1 && y === y1) break;
+        const e2 = err + err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 <  dx) { err += dx; y += sy; }
+    }
+}
+
+// Convert a UTC-ms timestamp to a clock angle on the 24-hour face.
+// Noon (12:00) = 0° (top), each hour = 15°, midnight (00:00) = 180° (bottom).
+function msToClockAngle(ms) {
+    const d = new Date(ms);
+    const h = d.getHours() + d.getMinutes() / 60;
+    return ((h - 12) * 15 + 360) % 360;
+}
+
+function makeClockAngles(half) {
+    if (!half) return null;
+    return {
+        az6:  half.goldenStartMs !== null ? msToClockAngle(half.goldenStartMs) : null,
+        azM4: half.goldenEndMs   !== null ? msToClockAngle(half.goldenEndMs)   : null,
+        azM6: half.blueEndMs     !== null ? msToClockAngle(half.blueEndMs)     : null,
+    };
+}
+
+// Like drawGradientArc but uses absolute clock angles, not heading-relative ringPos.
+function drawClockArc(p, az6, azM4, azM6, r) {
+    const arcStart = az6  !== null ? az6  : azM4;
+    const arcEnd   = azM6 !== null ? azM6 : azM4;
+    if (arcStart === null || arcEnd === null) return;
+    const cwSpan = ((arcEnd - arcStart) + 360) % 360;
+    const cw     = cwSpan <= 180;
+    const total  = cw ? cwSpan : 360 - cwSpan;
+    let m4Offset = null;
+    if (azM4 !== null && az6 !== null) {
+        const s = ((azM4 - arcStart) + 360) % 360;
+        m4Offset = cw ? s : 360 - s;
+    }
+    const DITHER = 2, DOT = 3;
+    const startColor = az6  !== null ? C_GOLDEN : C_BLUE;
+    const endColor   = azM6 !== null ? C_BLUE   : C_GOLDEN;
+    let a = arcStart * RAD_C;
+    let px = CX + Math.round(r * Math.sin(a)), py = CY - Math.round(r * Math.cos(a));
+    p.fillColor(startColor, px - DOT - 1, py - DOT - 1, (DOT + 1) * 2 + 1, (DOT + 1) * 2 + 1);
+    a = arcEnd * RAD_C;
+    px = CX + Math.round(r * Math.sin(a)); py = CY - Math.round(r * Math.cos(a));
+    p.fillColor(endColor, px - DOT - 1, py - DOT - 1, (DOT + 1) * 2 + 1, (DOT + 1) * 2 + 1);
+    for (let i = 0; i <= total; i += 2) {
+        const az = cw ? (arcStart + i + 360) % 360 : (arcStart - i + 360) % 360;
+        a = az * RAD_C;
+        px = CX + Math.round(r * Math.sin(a)); py = CY - Math.round(r * Math.cos(a));
+        let color;
+        if (m4Offset === null)             color = az6 !== null ? C_GOLDEN : C_BLUE;
+        else if (i < m4Offset - DITHER)    color = C_GOLDEN;
+        else if (i > m4Offset + DITHER)    color = C_BLUE;
+        else                               color = (i >> 1) % 2 === 0 ? C_GOLDEN : C_BLUE;
+        p.fillColor(color, px - DOT, py - DOT, DOT * 2 + 1, DOT * 2 + 1);
     }
 }
 
@@ -216,6 +285,11 @@ function calcState() {
     state.blueActive   = state.nextBlue   !== null && state.nextBlue.startMs   <= nowMs;
     state.fmtGolden    = fmtCountdown(state.nextGolden, nowMs);
     state.fmtBlue      = fmtCountdown(state.nextBlue,   nowMs);
+    state.clockArcs = {
+        morning:  makeClockAngles(state.arc ? state.arc.morning : null),
+        evening:  makeClockAngles(state.arc ? state.arc.evening : null),
+        nowAngle: msToClockAngle(nowMs),
+    };
 }
 
 function saveLocation(lat, lon) {
@@ -337,10 +411,73 @@ function drawTimerCenter(p) {
     drawTimerRows(p, CX - 52, CY - 12, CY + 6);
 }
 
+// ── 24-hour clock view ────────────────────────────────────────────────────────
+function drawClockView(p) {
+    p.fillColor(C_BG, 0, 0, W, H);
+    const ringW = 4;
+    fillCircle(p, CX, CY, RING_R, C_RING);
+    fillCircle(p, CX, CY, RING_R - ringW, C_BG);
+
+    // Golden+blue hour arcs as time spans on the clock face
+    if (state.clockArcs) {
+        const arcR = RING_R - 2;
+        if (state.clockArcs.morning) {
+            const m = state.clockArcs.morning;
+            drawClockArc(p, m.az6, m.azM4, m.azM6, arcR);
+        }
+        if (state.clockArcs.evening) {
+            const e = state.clockArcs.evening;
+            drawClockArc(p, e.az6, e.azM4, e.azM6, arcR);
+        }
+    }
+
+    // Hour ticks: every 15° (1 hour), major every 6 hours
+    const tickR = RING_R - ringW - 1;
+    for (let h = 0; h < 24; h++) {
+        const deg = ((h - 12) * 15 + 360) % 360;
+        const a   = deg * RAD_C;
+        const tx  = CX + Math.round(tickR * Math.sin(a));
+        const ty  = CY - Math.round(tickR * Math.cos(a));
+        const isMaj = h % 6 === 0;
+        const sz = isMaj ? 4 : 2;
+        p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, tx - (sz >> 1), ty - (sz >> 1), sz, sz);
+    }
+
+    // Labels: noon top, 6p right, midnight bottom, 6a left
+    const labelR = RING_R - 20;
+    for (const [deg, lbl, ox] of [
+        [0,   "12p", -12],
+        [90,  "6p",  -9],
+        [180, "12a", -12],
+        [270, "6a",  -9],
+    ]) {
+        const a  = deg * RAD_C;
+        const lx = CX + Math.round(labelR * Math.sin(a)) + ox;
+        const ly = CY - Math.round(labelR * Math.cos(a)) - 7;
+        p.drawString(lbl, F_SM, C_DIM, lx, ly);
+    }
+
+    // Current time hand
+    if (state.clockArcs) {
+        const a   = state.clockArcs.nowAngle * RAD_C;
+        const hR  = RING_R - ringW - 6;
+        const hx  = CX + Math.round(hR * Math.sin(a));
+        const hy  = CY - Math.round(hR * Math.cos(a));
+        drawLine(p, CX, CY, hx, hy, C_TEXT);
+        p.fillColor(C_TEXT, CX - 2, CY - 2, 5, 5);  // center dot
+    }
+
+    if (IS_ROUND) drawTimerCenter(p);
+    else          drawTimerPanel(p);
+}
+
 // ── Port behavior ─────────────────────────────────────────────────────────────
 class PortBehavior {
     onCreate(content) { port = content; }
-    onDraw(p) { drawCompassView(p); }
+    onDraw(p) {
+        if (state.view === "clock") drawClockView(p);
+        else                        drawCompassView(p);
+    }
 }
 
 // ── Location fetch ────────────────────────────────────────────────────────────
@@ -391,8 +528,7 @@ class AppBehavior {
             onPush(down, type) {
                 if (!down) return;
                 if (type === "up") {
-                    state.zoom = !state.zoom;
-                    if (state.zoom) state.zoomCenter = computeZoomCenter();
+                    state.view = state.view === "clock" ? "compass" : "clock";
                     redraw();
                 } else if (type === "select" && !DEMO) {
                     doLocationFetch(true);
