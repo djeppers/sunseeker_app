@@ -138,9 +138,9 @@ export function lightArc(lat, lon, date) {
             goldenStartMs:   p6ms !== null ? base + p6ms : null,
             goldenEndMs:     m4ms !== null ? base + m4ms : null,
             blueEndMs:       m6ms !== null ? base + m6ms : null,
-            azimuthAt6:      p6ms !== null ? azimuthAtMin(lat, lon, p6ms / 60000, jdNoon) : null,
-            azimuthAtMinus4: m4ms !== null ? azimuthAtMin(lat, lon, m4ms / 60000, jdNoon) : null,
-            azimuthAtMinus6: m6ms !== null ? azimuthAtMin(lat, lon, m6ms / 60000, jdNoon) : null,
+            azimuthAt6:      p6ms !== null ? Math.round(azimuthAtMin(lat, lon, p6ms / 60000, jdNoon)) : null,
+            azimuthAtMinus4: m4ms !== null ? Math.round(azimuthAtMin(lat, lon, m4ms / 60000, jdNoon)) : null,
+            azimuthAtMinus6: m6ms !== null ? Math.round(azimuthAtMin(lat, lon, m6ms / 60000, jdNoon)) : null,
         };
     }
 

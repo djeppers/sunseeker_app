@@ -3,6 +3,11 @@
 		"$(MODDABLE)/examples/manifest_mod.json",
 		"$(MODDABLE)/examples/manifest_typings.json"
 	],
+	"creation": {
+		"chunk":  { "initial": 32768, "incremental": 4096 },
+		"heap":   { "initial": 1024,  "incremental": 128  },
+		"stack":  512
+	},
 	"modules": {
 		"*": "./main",
 		"sun": "./sun"
