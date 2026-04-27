@@ -28,9 +28,8 @@ const C = {
     BLUE:    "#4068C8",
 };
 
-// ── Fonts ─────────────────────────────────────────────────────────────────────
+// ── Font (one Style object instead of two) ────────────────────────────────────
 const F_SM = new Style({ font: "bold 14px Gothic" });
-const F_MD = new Style({ font: "bold 18px Gothic" });
 
 // ── Demo mode ─────────────────────────────────────────────────────────────────
 const DEMO      = true;
@@ -221,8 +220,6 @@ function loadLocation() {
 }
 
 // ── Drawing ───────────────────────────────────────────────────────────────────
-const CARDINALS    = [[0, "N", C.NORTH], [90, "E", C.CARD], [180, "S", C.CARD], [270, "W", C.CARD]];
-const CLOCK_LABELS = [[0, "12p", -12], [90, "6p", -9], [180, "12a", -12], [270, "6a", -9]];
 
 function drawTimerRows(p, x, y1, y2) {
     p.fillColor(C.GOLDEN, x, y1 + 4, 6, 6);
@@ -267,10 +264,10 @@ function drawCompassView(p) {
             const sz = isMaj ? 4 : 2;
             p.fillColor(isMaj ? C.TICK_HI : C.TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
         }
-        for (const [b, ltr, col] of CARDINALS) {
-            const { x, y } = ringPos(b, RING_R - 22);
-            p.drawString(ltr, F_MD, col, x - 5, y - 8);
-        }
+        ringPos(0,   RING_R - 22); p.drawString("N", F_SM, C.NORTH, _pos.x - 5, _pos.y - 8);
+        ringPos(90,  RING_R - 22); p.drawString("E", F_SM, C.CARD,  _pos.x - 5, _pos.y - 8);
+        ringPos(180, RING_R - 22); p.drawString("S", F_SM, C.CARD,  _pos.x - 5, _pos.y - 8);
+        ringPos(270, RING_R - 22); p.drawString("W", F_SM, C.CARD,  _pos.x - 5, _pos.y - 8);
     }
 
     // Fixed pointer triangle at 12 o'clock
@@ -302,7 +299,7 @@ function drawCompassView(p) {
             const abs  = Math.abs(Math.round(deg));
             const str  = abs <= 2 ? "Aligned!" : `${abs}deg ${deg > 0 ? "R" : "L"}`;
             p.drawString("ZOOM", F_SM, C.GOLDEN, 6, PANEL_Y + 6);
-            p.drawString(str, F_MD, str === "Aligned!" ? C.GOLDEN : C.TEXT, 52, PANEL_Y + 4);
+            p.drawString(str, F_SM, str === "Aligned!" ? C.GOLDEN : C.TEXT, 52, PANEL_Y + 4);
         } else {
             drawTimerRows(p, 6, PANEL_Y + 6, PANEL_Y + 26);
         }
@@ -399,14 +396,12 @@ function drawClockView(p) {
         p.fillColor(isMaj ? C.TICK_HI : C.TICK_LO, tx - (sz >> 1), ty - (sz >> 1), sz, sz);
     }
 
-    // Labels at 6h positions
+    // Labels at 6h positions — sin/cos of 0°/90°/180°/270° are ±1 or 0, no trig needed
     const labelR = RING_R - 20;
-    for (const [deg, lbl, ox] of CLOCK_LABELS) {
-        const a  = deg * RAD_C;
-        const lx = CX + Math.round(labelR * Math.sin(a)) + ox;
-        const ly = CY - Math.round(labelR * Math.cos(a)) - 7;
-        p.drawString(lbl, F_SM, C.DIM, lx, ly);
-    }
+    p.drawString("12p", F_SM, C.DIM, CX - 12,         CY - labelR - 7);
+    p.drawString("6p",  F_SM, C.DIM, CX + labelR - 9, CY - 7);
+    p.drawString("12a", F_SM, C.DIM, CX - 12,         CY + labelR - 7);
+    p.drawString("6a",  F_SM, C.DIM, CX - labelR - 9, CY - 7);
 
     // Current time hand — Bresenham line from center to ring
     const nowDeg = clockDeg(DEMO ? DEMO_MS : Date.now());
