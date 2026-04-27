@@ -307,23 +307,19 @@ function drawCompassView(p) {
 }
 
 // ── 24-hour clock view ────────────────────────────────────────────────────────
-// Inner helpers (clockDeg, clockArc, Bresenham line) live inside this function
-// so they consume zero module-level closure slots.
+// Inner helpers live inside this function: zero extra module-level slots.
 function drawClockView(p) {
     p.fillColor(C.BG, 0, 0, W, H);
-    const ringW = 4;
-    fillCircle(p, CX, CY, RING_R, C.RING);
-    fillCircle(p, CX, CY, RING_R - ringW, C.BG);
 
-    // UTC ms → 24h clock angle: noon=0°, 6pm=90°, midnight=180°, 6am=270°
-    // Pure integer arithmetic — no Date objects, no float chunk allocations.
+    // UTC ms → 24h clock angle: noon=0°, 6pm=90°, midnight=180°, 6am=270°.
+    // Integer arithmetic only — no Date objects, no float chunks.
     function clockDeg(ms) {
         return (((ms / 60000 | 0) % 1440 - 720 >> 2) + 360) % 360;
     }
 
-    // Draw golden+blue arc at absolute clock-angle positions (not heading-relative).
-    const arcR = RING_R - 2;
-    function clockArc(az6, azM4, azM6) {
+    // Filled cone from center to ring edge (Golden Hour One style).
+    // 2° angular steps, 3px radial steps, 3×3 dots.
+    function clockSector(az6, azM4, azM6) {
         const arcStart = az6  !== null ? az6  : azM4;
         const arcEnd   = azM6 !== null ? azM6 : azM4;
         if (arcStart === null || arcEnd === null) return;
@@ -335,40 +331,28 @@ function drawClockView(p) {
             const s = ((azM4 - arcStart) + 360) % 360;
             m4Offset = cw ? s : 360 - s;
         }
-        const DITHER = 1, DOT = 3;
-        const startColor = az6  !== null ? C.GOLDEN : C.BLUE;
-        const endColor   = azM6 !== null ? C.BLUE   : C.GOLDEN;
-        {
-            const a = arcStart * RAD_C;
-            const sx = CX + Math.round(arcR * Math.sin(a));
-            const sy = CY - Math.round(arcR * Math.cos(a));
-            p.fillColor(startColor, sx - DOT - 1, sy - DOT - 1, (DOT + 1) * 2 + 1, (DOT + 1) * 2 + 1);
-        }
-        {
-            const a = arcEnd * RAD_C;
-            const ex = CX + Math.round(arcR * Math.sin(a));
-            const ey = CY - Math.round(arcR * Math.cos(a));
-            p.fillColor(endColor, ex - DOT - 1, ey - DOT - 1, (DOT + 1) * 2 + 1, (DOT + 1) * 2 + 1);
-        }
         for (let i = 0; i <= total; i += 2) {
             const az = cw ? (arcStart + i + 360) % 360 : (arcStart - i + 360) % 360;
             const a  = az * RAD_C;
-            const x  = CX + Math.round(arcR * Math.sin(a));
-            const y  = CY - Math.round(arcR * Math.cos(a));
+            const sinA = Math.sin(a), cosA = Math.cos(a);
             let color;
-            if (m4Offset === null)             color = az6 !== null ? C.GOLDEN : C.BLUE;
-            else if (i < m4Offset - DITHER)    color = C.GOLDEN;
-            else if (i > m4Offset + DITHER)    color = C.BLUE;
-            else                               color = (i >> 1) % 2 === 0 ? C.GOLDEN : C.BLUE;
-            p.fillColor(color, x - DOT, y - DOT, DOT * 2 + 1, DOT * 2 + 1);
+            if (m4Offset === null)          color = az6 !== null ? C.GOLDEN : C.BLUE;
+            else if (i < m4Offset - 1)      color = C.GOLDEN;
+            else if (i > m4Offset + 1)      color = C.BLUE;
+            else                            color = (i >> 1) % 2 === 0 ? C.GOLDEN : C.BLUE;
+            for (let t = 3; t <= RING_R; t += 3) {
+                const x = CX + Math.round(t * sinA);
+                const y = CY - Math.round(t * cosA);
+                p.fillColor(color, x - 1, y - 1, 3, 3);
+            }
         }
     }
 
-    // Event arcs (morning left/top, evening right)
+    // Draw morning and evening event cones
     if (state.arc) {
         if (state.arc.morning) {
             const m = state.arc.morning;
-            clockArc(
+            clockSector(
                 m.goldenStartMs !== null ? clockDeg(m.goldenStartMs) : null,
                 m.goldenEndMs   !== null ? clockDeg(m.goldenEndMs)   : null,
                 m.blueEndMs     !== null ? clockDeg(m.blueEndMs)     : null
@@ -376,7 +360,7 @@ function drawClockView(p) {
         }
         if (state.arc.evening) {
             const e = state.arc.evening;
-            clockArc(
+            clockSector(
                 e.goldenStartMs !== null ? clockDeg(e.goldenStartMs) : null,
                 e.goldenEndMs   !== null ? clockDeg(e.goldenEndMs)   : null,
                 e.blueEndMs     !== null ? clockDeg(e.blueEndMs)     : null
@@ -384,8 +368,16 @@ function drawClockView(p) {
         }
     }
 
+    // Thin ring outline (drawn over cones so tick marks are legible)
+    for (let d = 0; d < 360; d += 4) {
+        const a  = d * RAD_C;
+        const rx = CX + Math.round(RING_R * Math.sin(a));
+        const ry = CY - Math.round(RING_R * Math.cos(a));
+        p.fillColor(C.RING, rx, ry, 2, 2);
+    }
+
     // Hour ticks every 15° (1h), major every 90° (6h)
-    const tickR = RING_R - ringW - 1;
+    const tickR = RING_R - 5;
     for (let h = 0; h < 24; h++) {
         const deg = ((h - 12) * 15 + 360) % 360;
         const a   = deg * RAD_C;
@@ -396,7 +388,7 @@ function drawClockView(p) {
         p.fillColor(isMaj ? C.TICK_HI : C.TICK_LO, tx - (sz >> 1), ty - (sz >> 1), sz, sz);
     }
 
-    // Labels at 6h positions — sin/cos of 0°/90°/180°/270° are ±1 or 0, no trig needed
+    // Labels at 6h positions — sin/cos of 0°/90°/180°/270° are ±1 or 0
     const labelR = RING_R - 20;
     p.drawString("12p", F_SM, C.DIM, CX - 12,         CY - labelR - 7);
     p.drawString("6p",  F_SM, C.DIM, CX + labelR - 9, CY - 7);
@@ -405,10 +397,9 @@ function drawClockView(p) {
 
     // Current time hand — Bresenham line from center to ring
     const nowDeg = clockDeg(DEMO ? DEMO_MS : Date.now());
-    const hR  = RING_R - ringW - 6;
     const hRa = nowDeg * RAD_C;
-    const hx  = CX + Math.round(hR * Math.sin(hRa));
-    const hy  = CY - Math.round(hR * Math.cos(hRa));
+    const hx  = CX + Math.round((RING_R - 8) * Math.sin(hRa));
+    const hy  = CY - Math.round((RING_R - 8) * Math.cos(hRa));
     {
         let ldx = Math.abs(hx - CX), ldy = Math.abs(hy - CY);
         const sx = CX < hx ? 1 : -1, sy = CY < hy ? 1 : -1;
