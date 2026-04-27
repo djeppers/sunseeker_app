@@ -26,6 +26,10 @@ const C_DIM     = "#686868";
 const C_GOLDEN  = "#F0A030";
 const C_BLUE    = "#4068C8";
 
+// Pre-allocated at module level — avoids per-draw Array chunk allocations in XS.
+const CARDINALS    = [[0, "N", C_NORTH], [90, "E", C_CARD], [180, "S", C_CARD], [270, "W", C_CARD]];
+const CLOCK_LABELS = [[0, "12p", -12], [90, "6p", -9], [180, "12a", -12], [270, "6a", -9]];
+
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 const F_SM = new Style({ font: "bold 14px Gothic" });
 const F_MD = new Style({ font: "bold 18px Gothic" });
@@ -69,9 +73,12 @@ const RAD_C = Math.PI / 180;
 
 // Reuse a single object — callers must read x/y before the next ringPos call.
 const _pos = { x: 0, y: 0 };
+let _absPos = false;  // when true, bearing is used as an absolute angle (clock view)
 
 function ringPos(bearing, r) {
-    const delta = ((bearing - state.heading) % 360 + 360) % 360;
+    const delta = _absPos
+        ? ((bearing + 360) % 360)
+        : ((bearing - state.heading) % 360 + 360) % 360;
     const a = delta * RAD_C;
     _pos.x = CX + Math.round(r * Math.sin(a));
     _pos.y = CY - Math.round(r * Math.cos(a));
@@ -353,7 +360,7 @@ function drawCompassView(p) {
             p.fillColor(isMaj ? C_TICK_HI : C_TICK_LO, x - (sz >> 1), y - (sz >> 1), sz, sz);
         }
         // Cardinal labels
-        for (const [b, ltr, col] of [[0, "N", C_NORTH], [90, "E", C_CARD], [180, "S", C_CARD], [270, "W", C_CARD]]) {
+        for (const [b, ltr, col] of CARDINALS) {
             const { x, y } = ringPos(b, RING_R - 22);
             p.drawString(ltr, F_MD, col, x - 5, y - 8);
         }
@@ -445,12 +452,7 @@ function drawClockView(p) {
 
     // Labels: noon top, 6p right, midnight bottom, 6a left
     const labelR = RING_R - 20;
-    for (const [deg, lbl, ox] of [
-        [0,   "12p", -12],
-        [90,  "6p",  -9],
-        [180, "12a", -12],
-        [270, "6a",  -9],
-    ]) {
+    for (const [deg, lbl, ox] of CLOCK_LABELS) {
         const a  = deg * RAD_C;
         const lx = CX + Math.round(labelR * Math.sin(a)) + ox;
         const ly = CY - Math.round(labelR * Math.cos(a)) - 7;
