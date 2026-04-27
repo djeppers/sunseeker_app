@@ -120,7 +120,9 @@ export function lightArc(lat, lon, date) {
     const base   = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
     const jdNoon = jdNoonFromDate(date);
 
-    // One solarParams call for noon; riseSet re-uses _decl/_eqt for all 3 zeniths.
+    // One solarParams call for noon; _decl/_eqt are reused for riseSet AND azimuth lookups.
+    // Declination drifts ~0.017°/hour so reusing noon values for event-time azimuths
+    // introduces < 0.5° error — negligible for compass rendering (±5° tolerance).
     solarParams(jdNoon);
 
     let p6r = null, p6s = null;
@@ -131,16 +133,16 @@ export function lightArc(lat, lon, date) {
     if (riseSet(lat, lon, 94)) { m4r = _riseMs; m4s = _setMs; }  // -4° elevation
     if (riseSet(lat, lon, 96)) { m6r = _riseMs; m6s = _setMs; }  // -6° elevation
 
-    // azimuthAtMin overwrites _decl/_eqt — all riseSet calls are done before this.
+    // azimuthFromParams uses the noon _decl/_eqt already set above — no extra solarParams calls.
     function half(p6ms, m4ms, m6ms) {
         if (p6ms === null && m4ms === null) return null;
         return {
             goldenStartMs:   p6ms !== null ? base + p6ms : null,
             goldenEndMs:     m4ms !== null ? base + m4ms : null,
             blueEndMs:       m6ms !== null ? base + m6ms : null,
-            azimuthAt6:      p6ms !== null ? Math.round(azimuthAtMin(lat, lon, p6ms / 60000, jdNoon)) : null,
-            azimuthAtMinus4: m4ms !== null ? Math.round(azimuthAtMin(lat, lon, m4ms / 60000, jdNoon)) : null,
-            azimuthAtMinus6: m6ms !== null ? Math.round(azimuthAtMin(lat, lon, m6ms / 60000, jdNoon)) : null,
+            azimuthAt6:      p6ms !== null ? Math.round(azimuthFromParams(lat, lon, p6ms / 60000)) : null,
+            azimuthAtMinus4: m4ms !== null ? Math.round(azimuthFromParams(lat, lon, m4ms / 60000)) : null,
+            azimuthAtMinus6: m6ms !== null ? Math.round(azimuthFromParams(lat, lon, m6ms / 60000)) : null,
         };
     }
 
