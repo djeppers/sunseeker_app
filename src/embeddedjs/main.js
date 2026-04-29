@@ -38,7 +38,6 @@ const DEMO_LON  = 12.57;
 const DEMO_HEAD = 315;
 // Demo date as ms-since-epoch avoids a module-level Date object
 const DEMO_MS   = Date.UTC(2026, 5, 21, 19, 15, 0); // summer solstice, mid golden hour
-const TZ_OFFSET = new Date().getTimezoneOffset();   // minutes west of UTC (negative for UTC+)
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
@@ -151,8 +150,8 @@ function fmtCountdown(event, nowMs) {
     const min = m % 60;
     if (((event.startMs / 86400000) | 0) !== ((nowMs / 86400000) | 0)) {
         // "tmrw HH:MM" — compute without new Date
-        const localMin = ((event.startMs / 60000 | 0) % 1440 - TZ_OFFSET + 1440) % 1440;
-        const hh = (localMin / 60 | 0), mm = localMin % 60;
+        const _d = new Date(event.startMs);
+        const hh = _d.getHours(), mm = _d.getMinutes();
         return `tmrw ${hh < 10 ? "0" : ""}${hh}:${mm < 10 ? "0" : ""}${mm}`;
     }
     return h > 0 ? `in ${h}h${min < 10 ? "0" : ""}${min}m` : `in ${m}m`;
@@ -312,9 +311,10 @@ function drawCompassView(p) {
 function drawClockView(p) {
     p.fillColor(C.BG, 0, 0, W, H);
 
-    // Local-time ms → 24h clock angle: noon=0°, 6pm=90°, midnight=180°, 6am=270°.
+    // Watch local time → 24h clock angle: noon=0°, 6pm=90°, midnight=180°, 6am=270°.
     function clockDeg(ms) {
-        const localMin = ((ms / 60000 | 0) % 1440 - TZ_OFFSET + 1440) % 1440;
+        const d = new Date(ms);
+        const localMin = d.getHours() * 60 + d.getMinutes();
         return ((localMin - 720 >> 2) + 360) % 360;
     }
 
