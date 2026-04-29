@@ -391,10 +391,10 @@ function drawClockView(p) {
 
     // Labels at 6h positions — sin/cos of 0°/90°/180°/270° are ±1 or 0
     const labelR = RING_R - 20;
-    p.drawString("12p", F_SM, C.DIM, CX - 12,         CY - labelR - 7);
-    p.drawString("6p",  F_SM, C.DIM, CX + labelR - 9, CY - 7);
-    p.drawString("12a", F_SM, C.DIM, CX - 12,         CY + labelR - 7);
-    p.drawString("6a",  F_SM, C.DIM, CX - labelR - 9, CY - 7);
+    p.drawString("12:00", F_SM, C.DIM, CX - 16,         CY - labelR - 7);
+    p.drawString("18:00", F_SM, C.DIM, CX + labelR - 9, CY - 7);
+    p.drawString("00:00", F_SM, C.DIM, CX - 16,         CY + labelR - 7);
+    p.drawString("06:00", F_SM, C.DIM, CX - labelR - 9, CY - 7);
 
     // Current time hand — Bresenham line from center to ring
     const nowDeg = clockDeg(DEMO ? DEMO_MS : Date.now());
