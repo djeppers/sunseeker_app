@@ -474,6 +474,9 @@ class AppBehavior {
             calcState();
             if (port) port.invalidate();
         } else {
+            // Seed Copenhagen so arcs render immediately; real GPS overrides on fix
+            state.lat = DEMO_LAT; state.lon = DEMO_LON; state.located = true;
+            calcState();
             loadLocation();
             if (port) port.invalidate();
 
