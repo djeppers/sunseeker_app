@@ -37,7 +37,7 @@ const DEMO_LAT  = 55.68;
 const DEMO_LON  = 12.57;
 const DEMO_HEAD = 315;
 // Demo date as ms-since-epoch avoids a module-level Date object
-const DEMO_MS   = Date.UTC(2026, 2, 13, 15, 0, 0);
+const DEMO_MS   = Date.UTC(2026, 5, 21, 19, 15, 0); // summer solstice, mid golden hour
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
@@ -340,10 +340,10 @@ function drawClockView(p) {
             else if (i < m4Offset - 1)      color = C.GOLDEN;
             else if (i > m4Offset + 1)      color = C.BLUE;
             else                            color = (i >> 1) % 2 === 0 ? C.GOLDEN : C.BLUE;
-            for (let t = 3; t <= RING_R; t += 3) {
+            for (let t = 5; t <= RING_R; t += 5) {
                 const x = CX + Math.round(t * sinA);
                 const y = CY - Math.round(t * cosA);
-                p.fillColor(color, x - 1, y - 1, 3, 3);
+                p.fillColor(color, x - 2, y - 2, 5, 5);
             }
         }
     }
@@ -369,7 +369,7 @@ function drawClockView(p) {
     }
 
     // Thin ring outline (drawn over cones so tick marks are legible)
-    for (let d = 0; d < 360; d += 4) {
+    for (let d = 0; d < 360; d += 6) {
         const a  = d * RAD_C;
         const rx = CX + Math.round(RING_R * Math.sin(a));
         const ry = CY - Math.round(RING_R * Math.cos(a));
