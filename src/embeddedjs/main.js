@@ -32,7 +32,7 @@ const C = {
 const F_SM = new Style({ font: "bold 14px Gothic" });
 
 // ── Demo mode ─────────────────────────────────────────────────────────────────
-const DEMO      = true;
+const DEMO      = false;
 const DEMO_LAT  = 55.68;
 const DEMO_LON  = 12.57;
 const DEMO_HEAD = 315;
