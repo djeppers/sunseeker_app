@@ -38,6 +38,7 @@ const DEMO_LON  = 12.57;
 const DEMO_HEAD = 315;
 // Demo date as ms-since-epoch avoids a module-level Date object
 const DEMO_MS   = Date.UTC(2026, 5, 21, 19, 15, 0); // summer solstice, mid golden hour
+const IS_24H    = new Date(2000, 0, 1, 13).toLocaleTimeString().indexOf("13") === 0;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
@@ -391,10 +392,17 @@ function drawClockView(p) {
 
     // Labels at 6h positions — sin/cos of 0°/90°/180°/270° are ±1 or 0
     const labelR = RING_R - 20;
-    p.drawString("12:00", F_SM, C.DIM, CX - 16,         CY - labelR - 7);
-    p.drawString("18:00", F_SM, C.DIM, CX + labelR - 9, CY - 7);
-    p.drawString("00:00", F_SM, C.DIM, CX - 16,         CY + labelR - 7);
-    p.drawString("06:00", F_SM, C.DIM, CX - labelR - 9, CY - 7);
+    if (IS_24H) {
+        p.drawString("12:00", F_SM, C.DIM, CX - 16,         CY - labelR - 7);
+        p.drawString("18:00", F_SM, C.DIM, CX + labelR - 9, CY - 7);
+        p.drawString("00:00", F_SM, C.DIM, CX - 16,         CY + labelR - 7);
+        p.drawString("06:00", F_SM, C.DIM, CX - labelR - 9, CY - 7);
+    } else {
+        p.drawString("12pm", F_SM, C.DIM, CX - 14,         CY - labelR - 7);
+        p.drawString("6pm",  F_SM, C.DIM, CX + labelR - 9, CY - 7);
+        p.drawString("12am", F_SM, C.DIM, CX - 14,         CY + labelR - 7);
+        p.drawString("6am",  F_SM, C.DIM, CX - labelR - 9, CY - 7);
+    }
 
     // Current time hand — Bresenham line from center to ring
     const nowDeg = clockDeg(DEMO ? DEMO_MS : Date.now());
