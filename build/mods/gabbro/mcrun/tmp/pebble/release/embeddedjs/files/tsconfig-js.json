@@ -1,0 +1,457 @@
+{
+	"compilerOptions": {
+		"rootDir": "/home/jeppe/pebble-projects/sunseeker_app/src/embeddedjs",
+		"forceConsistentCasingInFileNames": true,
+		"module": "es2022",
+		"outDir": "/home/jeppe/pebble-projects/sunseeker_app/build/mods/gabbro/mcrun/tmp/pebble/release/embeddedjs/files",
+		"paths": {
+			"ChatAudioIO": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ChatAudioIO"
+			],
+			"Resource": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/Resource"
+			],
+			"base64": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/base64"
+			],
+			"console": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/console"
+			],
+			"crc": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/crc"
+			],
+			"crypt": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/crypt"
+			],
+			"debug": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/debug"
+			],
+			"deepEqual": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/deepEqual"
+			],
+			"deflate": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/deflate"
+			],
+			"display": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/display"
+			],
+			"dns": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/dns"
+			],
+			"easing": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/easing"
+			],
+			"file": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/file"
+			],
+			"flash": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/flash"
+			],
+			"global": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/global"
+			],
+			"hex": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/hex"
+			],
+			"http": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/http"
+			],
+			"inflate": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/inflate"
+			],
+			"instrumentation": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/instrumentation"
+			],
+			"mdns": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/mdns"
+			],
+			"modules": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/modules"
+			],
+			"neopixel": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/neopixel"
+			],
+			"neostrand": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/neostrand"
+			],
+			"net": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/net"
+			],
+			"ping": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ping"
+			],
+			"preference": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/preference"
+			],
+			"qrcode": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/qrcode"
+			],
+			"securesocket": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/securesocket"
+			],
+			"sntp": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/sntp"
+			],
+			"socket": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/socket"
+			],
+			"telnet": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/telnet"
+			],
+			"time": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/time"
+			],
+			"timer": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/timer"
+			],
+			"uuid": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/uuid"
+			],
+			"websocket": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/websocket"
+			],
+			"wifi": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/wifi"
+			],
+			"zip": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/zip"
+			],
+			"bleclient": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/bleclient"
+			],
+			"bleserver": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/bleserver"
+			],
+			"btutils": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/btutils"
+			],
+			"connection": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/connection"
+			],
+			"gap": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/gap"
+			],
+			"gatt": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/gatt"
+			],
+			"hidclient": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/hidclient"
+			],
+			"index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/index"
+			],
+			"sm": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/ble/sm"
+			],
+			"fetch": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/web/fetch"
+			],
+			"headers": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/web/headers"
+			],
+			"structuredClone": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/web/structuredClone"
+			],
+			"url": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/web/url"
+			],
+			"webstorage": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/web/webstorage"
+			],
+			"worker": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/web/worker"
+			],
+			"commodetto/Bitmap": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/Bitmap"
+			],
+			"commodetto/BufferOut": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/BufferOut"
+			],
+			"commodetto/Convert": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/Convert"
+			],
+			"commodetto/PixelsOut": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/PixelsOut"
+			],
+			"commodetto/Poco": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/Poco"
+			],
+			"commodetto/ReadGIF": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/ReadGIF"
+			],
+			"commodetto/ReadPNG": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/ReadPNG"
+			],
+			"commodetto/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/index"
+			],
+			"commodetto/loadJPEG": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/loadJPEG"
+			],
+			"commodetto/outline": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/outline"
+			],
+			"commodetto/parseBMF": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/parseBMF"
+			],
+			"commodetto/parseBMP": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/parseBMP"
+			],
+			"commodetto/parseNFNT": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/parseNFNT"
+			],
+			"commodetto/parseRLE": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/parseRLE"
+			],
+			"commodetto/readJPEG": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/readJPEG"
+			],
+			"commodetto/readStream": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/commodetto/readStream"
+			],
+			"dns/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/dns/index"
+			],
+			"dns/parser": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/dns/parser"
+			],
+			"dns/serializer": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/dns/serializer"
+			],
+			"dns/server": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/dns/server"
+			],
+			"mc/config": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/mc/config"
+			],
+			"mc/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/mc/index"
+			],
+			"mod/config": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/mod/config"
+			],
+			"mod/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/mod/index"
+			],
+			"pins/analog": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/analog"
+			],
+			"pins/audioin": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/audioin"
+			],
+			"pins/audioout": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/audioout"
+			],
+			"pins/digital": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/digital"
+			],
+			"pins/i2c": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/i2c"
+			],
+			"pins/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/index"
+			],
+			"pins/pwm": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/pwm"
+			],
+			"pins/rmt": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/rmt"
+			],
+			"pins/servo": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/servo"
+			],
+			"pins/smbus": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pins/smbus"
+			],
+			"piu/CombTransition": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/CombTransition"
+			],
+			"piu/MC-types": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/MC-types"
+			],
+			"piu/MC": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/MC"
+			],
+			"piu/QRCode": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/QRCode"
+			],
+			"piu/Sound": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/Sound"
+			],
+			"piu/Timeline": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/Timeline"
+			],
+			"piu/WipeTransition": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/WipeTransition"
+			],
+			"piu/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/index"
+			],
+			"piu/shape": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/shape"
+			],
+			"text/decoder": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/text/decoder"
+			],
+			"text/encoder": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/text/encoder"
+			],
+			"text/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/text/index"
+			],
+			"embedded:io/_common": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/_common"
+			],
+			"embedded:io/analog": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/analog"
+			],
+			"embedded:io/digital": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/digital"
+			],
+			"embedded:io/digitalbank": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/digitalbank"
+			],
+			"embedded:io/i2c": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/i2c"
+			],
+			"embedded:io/index": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/index"
+			],
+			"embedded:io/pulsecount": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/pulsecount"
+			],
+			"embedded:io/pwm": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/pwm"
+			],
+			"embedded:io/serial": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/serial"
+			],
+			"embedded:io/smbus": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/smbus"
+			],
+			"embedded:io/spi": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/spi"
+			],
+			"embedded:io/system": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/system"
+			],
+			"embedded:io/audio/in": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/audio/in"
+			],
+			"embedded:io/audio/out": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/audio/out"
+			],
+			"embedded:io/bluetoothle/_common": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/ble/_common"
+			],
+			"embedded:io/bluetoothle/central": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/ble/central"
+			],
+			"embedded:io/bluetoothle/peripheral": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/ble/peripheral"
+			],
+			"embedded:io/socket/listener": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/socket/listener"
+			],
+			"embedded:io/socket/tcp": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/socket/tcp"
+			],
+			"embedded:io/socket/tls": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/socket/tls"
+			],
+			"embedded:io/socket/udp": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_io/socket/udp"
+			],
+			"embedded:network/http/client": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/http/client"
+			],
+			"embedded:network/mqtt/client": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/mqtt/client"
+			],
+			"embedded:network/websocket/client": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/websocket/client"
+			],
+			"embedded:network/dns/resolver/udp": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/dns/resolver/udp"
+			],
+			"embedded:network/interface/ethernet": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/interface/ethernet"
+			],
+			"embedded:network/interface/wifi": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/interface/wifi"
+			],
+			"embedded:network/ntp/client": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/ntp/client"
+			],
+			"embedded:network/mdns": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded_network/mdns"
+			],
+			"embedded:RTC": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded/RTC"
+			],
+			"embedded:display": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded/display"
+			],
+			"embedded:storage/files": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded/storage/files"
+			],
+			"embedded:storage/flash": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded/storage/flash"
+			],
+			"embedded:storage/key-value": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/embedded/storage/key-value"
+			],
+			"mqtt/js": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/mqtt/js"
+			],
+			"embedded:sensor/Accelerometer": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/accelerometer"
+			],
+			"embedded:sensor/Battery": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/battery"
+			],
+			"embedded:sensor/Compass": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/compass"
+			],
+			"embedded:sensor/Location": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/location"
+			],
+			"embedded:provider/builtin": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/device"
+			],
+			"pebble/button": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/button"
+			],
+			"pebble/message": [
+				"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/message"
+			]
+		},
+		"lib": [
+			"es2025",
+			"esnext.iterator"
+		],
+		"sourceMap": true,
+		"target": "es2025",
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true,
+		"strict": true,
+		"noImplicitAny": false,
+		"noImplicitThis": false,
+		"strictNullChecks": false,
+		"types": [
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/global",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/piu",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/pebble/poco",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/easing",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/MC",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/piu/MC-types",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/xs/includes/xs",
+			"/home/jeppe/.pebble-sdk/SDKs/4.9.169/toolchain/moddable/typings/global"
+		]
+	},
+	"files": [
+		"/home/jeppe/pebble-projects/sunseeker_app/src/embeddedjs/main.js",
+		"/home/jeppe/pebble-projects/sunseeker_app/src/embeddedjs/sun.js"
+	]
+}

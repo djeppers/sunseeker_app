@@ -1,0 +1,29 @@
+{
+    "displayName": "SunSeeker",
+    "uuid": "407e0e62-3ef3-4453-af26-9733a9bcb192",
+    "projectType": "moddable",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+        "emery",
+        "gabbro"
+    ],
+    "watchapp": {
+        "watchface": false
+    },
+    "messageKeys": {
+        "dummy": 10000
+    },
+    "resources": {
+        "media": []
+    },
+    "name": "sunseeker",
+    "shortName": "SunSeeker",
+    "longName": "SunSeeker",
+    "versionLabel": "1.0.0",
+    "companyName": "Jeppe",
+    "appKeys": {
+        "dummy": 10000
+    },
+    "capabilities": []
+}

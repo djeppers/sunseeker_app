@@ -69,8 +69,8 @@
     },
     {
       "path": "package.json",
-      "accessCount": 5,
-      "lastAccessed": 1777143944792,
+      "accessCount": 7,
+      "lastAccessed": 1778142598544,
       "type": "file"
     },
     {
@@ -86,21 +86,27 @@
       "type": "file"
     },
     {
+      "path": "",
+      "accessCount": 3,
+      "lastAccessed": 1778142542280,
+      "type": "directory"
+    },
+    {
       "path": "src\\embeddedjs\\manifest.json",
       "accessCount": 2,
       "lastAccessed": 1777143942893,
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 1,
-      "lastAccessed": 1777067564423,
-      "type": "directory"
-    },
-    {
       "path": "src\\embeddedjs\\sun.js",
       "accessCount": 1,
       "lastAccessed": 1777068844460,
+      "type": "file"
+    },
+    {
+      "path": "wscript",
+      "accessCount": 1,
+      "lastAccessed": 1778142608545,
       "type": "file"
     }
   ],

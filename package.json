@@ -1,15 +1,25 @@
 {
   "name": "sunseeker",
   "version": "1.0.0",
-  "type": "module",
   "description": "PebbleOS sun tracker app — compass view for sunrise/sunset directions",
   "author": "Jeppe",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
   "pebble": {
     "displayName": "SunSeeker",
     "uuid": "407e0e62-3ef3-4453-af26-9733a9bcb192",
     "projectType": "moddable",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
     "targetPlatforms": ["emery", "gabbro"],
-    "sdk": "alloy"
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": ["dummy"],
+    "resources": {
+      "media": []
+    }
   },
   "scripts": {
     "test": "node tests/sun.test.js"

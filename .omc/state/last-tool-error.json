@@ -1,7 +1,7 @@
 {
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"git -C /mnt/wsl/instances/Ubuntu/home/jeppe/pebble-projects/sunseeker_app diff 2>/dev/null || git -C \\\"$(wslpath '\\\\\\\\wsl.localhost\\\\Ubuntu\\\\home\\\\jeppe\\\\pebble-projects\\\\sunseeker_app')\\\"...",
-  "error": "Exit code 1\n/usr/bin/bash: line 1: wslpath: command not found\n/usr/bin/bash: line 1: cd: /home/jeppe/pebble-projects/sunseeker_app: No such file or directory",
-  "timestamp": "2026-04-25T19:08:07.581Z",
-  "retry_count": 2
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"wsl -d Ubuntu -e bash -lc \\\"cd ~/pebble-projects/sunseeker_app && pebble build 2>&1\\\"\",\"timeout\":120000,\"description\":\"Build the stable ff8ce98 baseline\"}",
+  "error": "Exit code 1\nThis project is very outdated, and cannot be handled by this SDK.",
+  "timestamp": "2026-05-07T08:28:54.817Z",
+  "retry_count": 1
 }
